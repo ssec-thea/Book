@@ -1,0 +1,128 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile document",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string" },
+        "avatar": { "type": "string" },
+        "bio": { "type": "string" }
+      },
+      "required": ["id", "username", "email"]
+    },
+    "Book": {
+      "title": "Book",
+      "description": "Digital book and reading progress",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "country": { "type": "string" },
+        "cover": { "type": "string" },
+        "fileType": { "type": "string" },
+        "category": { "type": "string" },
+        "visibility": { "type": "string" },
+        "totalPages": { "type": "number" },
+        "currentPage": { "type": "number" },
+        "progress": { "type": "number" },
+        "readTime": { "type": "number" },
+        "lastReadTime": { "type": "string" },
+        "summary": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": [
+        "id",
+        "userId",
+        "title",
+        "author",
+        "country",
+        "fileType",
+        "category",
+        "visibility",
+        "totalPages",
+        "currentPage",
+        "progress",
+        "readTime",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Bookmark": {
+      "title": "Bookmark",
+      "description": "Reader bookmark for progress saving",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bookId": { "type": "string" },
+        "userId": { "type": "string" },
+        "position": { "type": "number" },
+        "chapterTitle": { "type": "string" },
+        "note": { "type": "string" },
+        "textSnippet": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "bookId", "userId", "position", "note", "textSnippet", "createdAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Book review and geographical reading footprint",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "userAvatar": { "type": "string" },
+        "bookId": { "type": "string" },
+        "bookTitle": { "type": "string" },
+        "bookAuthor": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "score": { "type": "number" },
+        "longitude": { "type": "number" },
+        "latitude": { "type": "number" },
+        "locationName": { "type": "string" },
+        "visibility": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": [
+        "id",
+        "userId",
+        "username",
+        "bookId",
+        "bookTitle",
+        "bookAuthor",
+        "title",
+        "content",
+        "score",
+        "locationName",
+        "visibility",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profile data"
+    },
+    "/books/{bookId}": {
+      "schema": "Book",
+      "description": "Collection of user-imported and standard books on the shelf"
+    },
+    "/bookmarks/{bookmarkId}": {
+      "schema": "Bookmark",
+      "description": "Collection of reader bookmarks for text highlights"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Collection of community and private reviews plotted on the map"
+    }
+  }
+}

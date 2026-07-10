@@ -1,0 +1,8 @@
+{
+  "name": "Marginalia - BookVoyage",
+  "description": "An interactive global reading map and digital bookshelf to track personal books, read reviews, and explore global reading footprints.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

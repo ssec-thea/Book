@@ -1,0 +1,106 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+    
+    // Global helper definitions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+    
+    // Entity validations
+    function isValidUser(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.username is string && data.username.size() <= 100
+        && data.email is string && data.email.size() <= 200;
+    }
+    
+    function isValidBook(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.title is string && data.title.size() <= 200
+        && data.author is string && data.author.size() <= 100
+        && data.country is string && data.country.size() <= 100
+        && data.fileType is string && (data.fileType == 'txt' || data.fileType == 'epub' || data.fileType == 'pdf')
+        && data.category is string && data.category.size() <= 100
+        && data.visibility is string && (data.visibility == 'public' || data.visibility == 'private')
+        && data.totalPages is int
+        && data.currentPage is int
+        && data.progress is int && data.progress >= 0 && data.progress <= 100
+        && data.readTime is int && data.readTime >= 0;
+    }
+    
+    function isValidBookmark(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.bookId is string && data.bookId.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.position is int
+        && data.note is string && data.note.size() <= 2000
+        && data.textSnippet is string && data.textSnippet.size() <= 2000;
+    }
+    
+    function isValidReview(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.username is string && data.username.size() <= 100
+        && data.bookId is string && data.bookId.size() <= 128
+        && data.bookTitle is string && data.bookTitle.size() <= 200
+        && data.bookAuthor is string && data.bookAuthor.size() <= 100
+        && data.title is string && data.title.size() <= 200
+        && data.content is string && data.content.size() <= 10000
+        && data.score is int && data.score >= 1 && data.score <= 5
+        && data.locationName is string && data.locationName.size() <= 200
+        && data.visibility is string && (data.visibility == 'public' || data.visibility == 'private');
+    }
+    
+    // Users Profile Collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId) && isValidUser(incoming());
+      allow delete: if isOwner(userId);
+    }
+    
+    // Books Shelf Collection
+    match /books/{bookId} {
+      allow read: if resource.data.visibility == 'public' || isOwner(resource.data.userId);
+      allow create: if isOwner(incoming().userId) && isValidBook(incoming()) && isValidId(bookId);
+      allow update: if isOwner(existing().userId) && isValidBook(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isOwner(existing().userId);
+    }
+    
+    // Bookmarks Highlight Collection
+    match /bookmarks/{bookmarkId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isOwner(incoming().userId) && isValidBookmark(incoming()) && isValidId(bookmarkId);
+      allow update: if isOwner(existing().userId) && isValidBookmark(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isOwner(existing().userId);
+    }
+    
+    // Reviews Footprint Collection
+    match /reviews/{reviewId} {
+      allow read: if resource.data.visibility == 'public' || isOwner(resource.data.userId);
+      allow create: if isOwner(incoming().userId) && isValidReview(incoming()) && isValidId(reviewId);
+      allow update: if isOwner(existing().userId) && isValidReview(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isOwner(existing().userId);
+    }
+  }
+}
