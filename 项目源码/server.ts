@@ -3,13 +3,32 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { initializeDatabase, testConnection } from "./src/db/database";
+
+// 路由模块
+import authRoutes from "./routes/auth";
+import bookRoutes from "./routes/books";
+import readingRoutes from "./routes/reading";
+import bookmarkRoutes from "./routes/bookmarks";
+import reviewRoutes from "./routes/reviews";
+import mapRoutes from "./routes/map";
 
 dotenv.config();
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+
+// ──────────────────────────────────────
+// RESTful API 路由
+// ──────────────────────────────────────
+app.use("/api/auth", authRoutes);
+app.use("/api/books", bookRoutes);
+app.use("/api/reading", readingRoutes);
+app.use("/api/bookmarks", bookmarkRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/map", mapRoutes);
 
 // Lazy initialization of Gemini API
 let aiClient: GoogleGenAI | null = null;
@@ -336,6 +355,15 @@ For each location, provide its descriptive name (e.g., 'Macondo, Colombia' or 'L
 
 // Vite middleware & Static server setup
 async function startServer() {
+  // 初始化数据库连接和建表
+  try {
+    await initializeDatabase();
+    await testConnection();
+  } catch (err: any) {
+    console.error("[Server] Database initialization failed:", err.message);
+    console.warn("[Server] Continuing without database — some features may not work.");
+  }
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

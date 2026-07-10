@@ -11,6 +11,7 @@ import CommunitySquare from './components/CommunitySquare';
 import UserProfileDashboard from './components/UserProfileDashboard';
 import { Library, Map, Users, User, Plus, Compass, Sparkles, LogOut, LogIn, ChevronRight, Check, Key, Mail, Edit3, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { api } from './services/api';
 
 type TabType = 'shelf' | 'map' | 'public' | 'profile';
 
@@ -43,6 +44,11 @@ export default function App() {
   const [regPassword, setRegPassword] = useState<string>('');
   const [authError, setAuthError] = useState<string>('');
 
+  // Login Form States
+  const [loginEmail, setLoginEmail] = useState<string>('voyager@bookvoyage.com');
+  const [loginPassword, setLoginPassword] = useState<string>('guestpass123');
+  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+
   const avatarUploadRef = useRef<HTMLInputElement>(null);
 
   const handleOnboardingAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -66,49 +72,84 @@ export default function App() {
   // Filter book reference for the map setting plotting
   const [mapActiveBookFilter, setMapActiveBookFilter] = useState<string | null>(null);
 
-  // Load state from localStorage on mount
+  // Load state from localStorage on mount (API-first with localStorage fallback)
   useEffect(() => {
-    const savedBooks = localStorage.getItem('bv_books');
-    const savedReviews = localStorage.getItem('bv_reviews');
-    const savedBookmarks = localStorage.getItem('bv_bookmarks');
-    const savedUser = localStorage.getItem('bv_currentUser');
+    const initApp = async () => {
+      // 尝试通过 API 恢复会话
+      const token = localStorage.getItem('bv_token');
+      if (token) {
+        try {
+          const res = await api.auth.me();
+          if (res.user) {
+            setCurrentUser(res.user);
+            setIsLoggedOut(false);
+            // 从 API 加载数据
+            try {
+              const [booksRes, reviewsRes, bookmarksRes] = await Promise.all([
+                api.books.list({ size: 100 }),
+                api.reviews.list({ size: 100 }),
+                api.bookmarks.list(),
+              ]);
+              if (booksRes?.data?.list) {
+                setBooks(booksRes.data.list);
+              }
+              if (reviewsRes?.data?.list) {
+                setReviews(reviewsRes.data.list);
+              }
+              if (bookmarksRes?.data) {
+                setBookmarks(bookmarksRes.data);
+              }
+              return; // API 加载成功，跳过 localStorage
+            } catch (apiErr) {
+              console.warn('API data load failed, falling back to localStorage');
+            }
+          }
+        } catch {
+          localStorage.removeItem('bv_token');
+        }
+      }
 
-    if (savedBooks) {
-      setBooks(JSON.parse(savedBooks));
-    } else {
-      setBooks(INITIAL_BOOKS);
-      localStorage.setItem('bv_books', JSON.stringify(INITIAL_BOOKS));
-    }
+      // localStorage 回退
+      const savedBooks = localStorage.getItem('bv_books');
+      const savedReviews = localStorage.getItem('bv_reviews');
+      const savedBookmarks = localStorage.getItem('bv_bookmarks');
+      const savedUser = localStorage.getItem('bv_currentUser');
 
-    if (savedReviews) {
-      setReviews(JSON.parse(savedReviews));
-    } else {
-      setReviews(INITIAL_REVIEWS);
-      localStorage.setItem('bv_reviews', JSON.stringify(INITIAL_REVIEWS));
-    }
+      if (savedBooks) {
+        setBooks(JSON.parse(savedBooks));
+      } else {
+        setBooks(INITIAL_BOOKS);
+      }
 
-    if (savedBookmarks) {
-      setBookmarks(JSON.parse(savedBookmarks));
-    } else {
-      setBookmarks(INITIAL_BOOKMARKS);
-      localStorage.setItem('bv_bookmarks', JSON.stringify(INITIAL_BOOKMARKS));
-    }
+      if (savedReviews) {
+        setReviews(JSON.parse(savedReviews));
+      } else {
+        setReviews(INITIAL_REVIEWS);
+      }
 
-    if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
-      setIsLoggedOut(false);
-    } else {
-      // Setup default guest profile so they can login immediately
-      const defaultUser = {
-        username: '书旅行者 (Voyager)',
-        email: 'voyager@bookvoyage.com',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop',
-        bio: '爱读书，也爱丈量世界的旅行者。Believe that reading is a voyage across space and time.'
-      };
-      setCurrentUser(defaultUser);
-      localStorage.setItem('bv_currentUser', JSON.stringify(defaultUser));
-      setIsLoggedOut(true); // default to true so they see login first
-    }
+      if (savedBookmarks) {
+        setBookmarks(JSON.parse(savedBookmarks));
+      } else {
+        setBookmarks(INITIAL_BOOKMARKS);
+      }
+
+      if (savedUser) {
+        setCurrentUser(JSON.parse(savedUser));
+        setIsLoggedOut(false);
+      } else {
+        const defaultUser = {
+          username: '书旅行者 (Voyager)',
+          email: 'voyager@bookvoyage.com',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop',
+          bio: '爱读书，也爱丈量世界的旅行者。Believe that reading is a voyage across space and time.'
+        };
+        setCurrentUser(defaultUser);
+        localStorage.setItem('bv_currentUser', JSON.stringify(defaultUser));
+        setIsLoggedOut(true);
+      }
+    };
+
+    initApp();
   }, []);
 
   // Save states helper
@@ -342,6 +383,37 @@ export default function App() {
   };
 
   // User Sign In / Register handlers
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setIsLoggingIn(true);
+
+    try {
+      const res = await api.auth.login(loginEmail, loginPassword);
+      if (res.token && res.user) {
+        localStorage.setItem('bv_token', res.token);
+        setCurrentUser(res.user);
+        setIsLoggedOut(false);
+        setAuthError('');
+        // 尝试从 API 加载数据
+        try {
+          const [booksRes, reviewsRes, bookmarksRes] = await Promise.all([
+            api.books.list({ size: 100 }),
+            api.reviews.list({ size: 100 }),
+            api.bookmarks.list(),
+          ]);
+          if (booksRes?.data?.list) setBooks(booksRes.data.list);
+          if (reviewsRes?.data?.list) setReviews(reviewsRes.data.list);
+          if (bookmarksRes?.data) setBookmarks(bookmarksRes.data);
+        } catch {}
+      }
+    } catch (err: any) {
+      setAuthError(err.message || 'Login failed');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const handleGuestLogin = () => {
     const guestUser = {
       username: '书旅行者 (Voyager)',
@@ -354,24 +426,40 @@ export default function App() {
     setIsLoggedOut(false);
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regUsername.trim() || !regEmail.trim()) {
-      setAuthError('Username and Email are required.');
+    if (!regUsername.trim() || !regEmail.trim() || !regPassword.trim()) {
+      setAuthError('All fields are required.');
       return;
     }
 
-    const newUser = {
-      username: regUsername.trim(),
-      email: regEmail.trim(),
-      avatar: selectedAvatarUrl,
-      bio: regBio.trim() || 'A passionate global explorer navigating world literatures.'
-    };
+    if (regPassword.length < 6) {
+      setAuthError('Password must be at least 6 characters.');
+      return;
+    }
 
-    setCurrentUser(newUser);
-    localStorage.setItem('bv_currentUser', JSON.stringify(newUser));
     setAuthError('');
-    setIsLoggedOut(false);
+
+    try {
+      const res = await api.auth.register({
+        username: regUsername.trim(),
+        email: regEmail.trim(),
+        password: regPassword,
+        avatar: selectedAvatarUrl,
+        bio: regBio.trim() || 'A passionate global explorer navigating world literatures.',
+      });
+
+      if (res.token && res.user) {
+        localStorage.setItem('bv_token', res.token);
+        setCurrentUser(res.user);
+        setIsLoggedOut(false);
+      }
+    } catch (err: any) {
+      setAuthError(err.message || 'Registration failed');
+      return;
+    }
+
+    setAuthError('');
   };
 
   const handleLogoutAction = () => {
@@ -506,7 +594,7 @@ export default function App() {
 
             {authTab === 'login' ? (
               /* Sign In Panel */
-              <div className="space-y-5">
+              <form onSubmit={handleLogin} className="space-y-5">
                 <div className="space-y-4 text-left">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-mono uppercase tracking-wider text-[#9c9284] flex items-center gap-1">
@@ -514,7 +602,10 @@ export default function App() {
                     </label>
                     <input
                       type="email"
-                      defaultValue="voyager@bookvoyage.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="voyager@bookvoyage.com"
+                      required
                       className="w-full text-xs p-3 bg-[#1c1713] border border-[#2c241d] rounded-xl focus:outline-none focus:border-[#dcae1d] text-[#f2efe9]"
                     />
                   </div>
@@ -524,18 +615,26 @@ export default function App() {
                     </label>
                     <input
                       type="password"
-                      defaultValue="guestpass123"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
                       className="w-full text-xs p-3 bg-[#1c1713] border border-[#2c241d] rounded-xl focus:outline-none focus:border-[#dcae1d] text-[#f2efe9]"
                     />
                   </div>
                 </div>
 
+                {authError && (
+                  <p className="text-xs text-amber-500 font-mono text-center">{authError}</p>
+                )}
+
                 <div className="pt-2 space-y-3">
                   <button
-                    onClick={() => setIsLoggedOut(false)}
-                    className="w-full bg-[#dcae1d] hover:bg-[#bda018] text-[#12100e] text-xs font-bold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="w-full bg-[#dcae1d] hover:bg-[#bda018] text-[#12100e] text-xs font-bold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 cursor-pointer"
                   >
-                    Log In & Resume Voyage <ChevronRight className="w-4 h-4" />
+                    {isLoggingIn ? 'Logging in...' : 'Log In & Resume Voyage'} <ChevronRight className="w-4 h-4" />
                   </button>
                   
                   <div className="relative flex py-2 items-center">
@@ -547,12 +646,12 @@ export default function App() {
                   <button
                     type="button"
                     onClick={handleGuestLogin}
-                    className="w-full py-2.5 bg-[#1c1713] hover:bg-[#2c241d] text-xs font-semibold text-[#9c9284] hover:text-[#f2efe9] rounded-xl transition-all border border-[#2c241d]"
+                    className="w-full py-2.5 bg-[#1c1713] hover:bg-[#2c241d] text-xs font-semibold text-[#9c9284] hover:text-[#f2efe9] rounded-xl transition-all border border-[#2c241d] cursor-pointer"
                   >
                     Bypass / Sign In with Guest Profile
                   </button>
                 </div>
-              </div>
+              </form>
             ) : (
               /* High-Fidelity Creation/Registration Form */
               <form onSubmit={handleRegister} className="space-y-4">
@@ -582,6 +681,20 @@ export default function App() {
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
                       placeholder="wanderer@voyager.com"
+                      className="w-full text-xs p-2.5 bg-[#1c1713] border border-[#2c241d] rounded-xl focus:outline-none focus:border-[#dcae1d] text-[#f2efe9]"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-[#9c9284] flex items-center gap-1">
+                      <Key className="w-3.5 h-3.5 text-[#dcae1d]" /> Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={regPassword}
+                      onChange={(e) => setRegPassword(e.target.value)}
+                      placeholder="At least 6 characters"
                       className="w-full text-xs p-2.5 bg-[#1c1713] border border-[#2c241d] rounded-xl focus:outline-none focus:border-[#dcae1d] text-[#f2efe9]"
                     />
                   </div>
