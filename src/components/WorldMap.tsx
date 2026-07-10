@@ -325,6 +325,50 @@ export default function WorldMap({ books, reviews, activeBookId, onBookClick }: 
             })}
           </g>
 
+          {/* Country Name Labels Overlay */}
+          <g id="country-labels" className="pointer-events-none">
+            {Object.entries(COUNTRIES_GEO_MAP).map(([name, info]) => {
+              const code = info.code;
+              const coord = projection([info.lng, info.lat]);
+              if (!coord) return null;
+
+              const [x, y] = coord;
+              const isSelected = selectedCountryCode === code;
+              const isHovered = hoveredCountryCode === code;
+              const countryStat = mapStats.countryData[code];
+              const hasData = countryStat && (countryStat.books.length > 0 || countryStat.reviews.length > 0);
+
+              return (
+                <g key={`label-${code}`} className="transition-all duration-200">
+                  {/* Small clean dot for ALL countries in our database to indicate they are interactive */}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={1.5}
+                    fill={hasData ? "#dcae1d" : "#5c544a"}
+                    opacity={hasData ? 0.9 : 0.4}
+                  />
+                  
+                  {/* Country Name Label */}
+                  <text
+                    x={x}
+                    y={y + 8}
+                    textAnchor="middle"
+                    className="font-mono select-none tracking-wider uppercase font-semibold"
+                    style={{
+                      fontSize: '5.5px',
+                      fill: isSelected ? '#dcae1d' : isHovered ? '#f2efe9' : hasData ? '#bfb49e' : '#5c544a',
+                      opacity: isSelected || isHovered ? 1 : hasData ? 0.8 : 0.5,
+                      textShadow: '0px 1px 2px rgba(0,0,0,0.9), 1px 0px 1px rgba(0,0,0,0.9)'
+                    }}
+                  >
+                    {name}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+
           {/* Glowing Country/Pins markers Overlay */}
           <g id="pins">
             {Object.entries(COUNTRIES_GEO_MAP).map(([name, info]) => {

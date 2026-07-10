@@ -227,6 +227,7 @@ export default function App() {
     const updated = [newBook, ...books];
     saveBooksState(updated);
     setIsImportOpen(false);
+    setActiveTab('shelf');
   };
 
   // Handle Book Deletion
@@ -397,46 +398,46 @@ export default function App() {
 
         {/* Central tab navigation bar */}
         {!isLoggedOut && (
-          <nav className="flex items-center gap-0.5 sm:gap-1 bg-[#1c1713] p-1 border border-[#2c241d] rounded-xl overflow-x-auto max-w-full scrollbar-none whitespace-nowrap order-3 sm:order-none w-full sm:w-auto justify-around sm:justify-start">
+          <nav className="flex w-full sm:w-auto items-center bg-[#1c1713] p-1 border border-[#2c241d] rounded-xl order-3 sm:order-none justify-between">
             <button
               onClick={() => setActiveTab('shelf')}
-              className={`px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial py-2 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'shelf'
                   ? 'bg-[#dcae1d] text-[#12100e] shadow-md'
                   : 'text-[#9c9284] hover:text-[#f2efe9]'
               }`}
             >
-              <Library className="w-3.5 h-3.5" /> <span>Shelf</span>
+              <Library className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:inline">Shelf</span>
             </button>
             <button
               onClick={() => setActiveTab('map')}
-              className={`px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial py-2 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'map'
                   ? 'bg-[#dcae1d] text-[#12100e] shadow-md'
                   : 'text-[#9c9284] hover:text-[#f2efe9]'
               }`}
             >
-              <Map className="w-3.5 h-3.5" /> <span>Global Map</span>
+              <Map className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:inline">Global Map</span>
             </button>
             <button
               onClick={() => setActiveTab('public')}
-              className={`px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial py-2 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'public'
                   ? 'bg-[#dcae1d] text-[#12100e] shadow-md'
                   : 'text-[#9c9284] hover:text-[#f2efe9]'
               }`}
             >
-              <Compass className="w-3.5 h-3.5" /> <span>Library Square</span>
+              <Compass className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:inline">Library Square</span>
             </button>
             <button
               onClick={() => setActiveTab('profile')}
-              className={`px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-initial py-2 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold tracking-wide flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'profile'
                   ? 'bg-[#dcae1d] text-[#12100e] shadow-md'
                   : 'text-[#9c9284] hover:text-[#f2efe9]'
               }`}
             >
-              <User className="w-3.5 h-3.5" /> <span>Reading Desk</span>
+              <User className="w-4 h-4 sm:w-3.5 sm:h-3.5" /> <span className="hidden sm:inline">Reading Desk</span>
             </button>
           </nav>
         )}
@@ -763,7 +764,6 @@ export default function App() {
               setIsReviewOpen(true);
             }}
             onDeleteBook={() => handleDeleteBook(selectedBook.id)}
-            onPlotStoryPlots={() => handlePlotStoryPlots(selectedBook)}
           />
         )}
 

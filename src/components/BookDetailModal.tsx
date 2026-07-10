@@ -11,7 +11,6 @@ interface BookDetailModalProps {
   onRead: () => void;
   onWriteReview: () => void;
   onDeleteBook: () => void;
-  onPlotStoryPlots: () => void;
 }
 
 export default function BookDetailModal({
@@ -21,8 +20,7 @@ export default function BookDetailModal({
   onClose,
   onRead,
   onWriteReview,
-  onDeleteBook,
-  onPlotStoryPlots
+  onDeleteBook
 }: BookDetailModalProps) {
   const bookReviews = reviews.filter(r => r.bookId === book.id);
   const bookBookmarks = bookmarks.filter(b => b.bookId === book.id);
@@ -130,8 +128,8 @@ export default function BookDetailModal({
               </p>
             </div>
 
-            {/* Main Action Triggers */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+             {/* Main Action Triggers */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
               <button
                 onClick={onRead}
                 className="px-4 py-2.5 bg-[#dcae1d] hover:bg-[#bda018] text-[#12100e] text-xs font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
@@ -144,14 +142,6 @@ export default function BookDetailModal({
                 className="px-4 py-2.5 bg-transparent border border-[#2c241d] hover:border-[#473c32] text-[#f2efe9] text-xs font-semibold rounded-xl hover:bg-[#1b1713] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <MessageSquare className="w-4 h-4" /> Log Review
-              </button>
-
-              <button
-                onClick={onPlotStoryPlots}
-                className="px-4 py-2.5 bg-[#824867]/20 border border-[#824867]/50 hover:border-[#824867] text-[#f59e0b] text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                title="Auto-discover content plot setting locations using Gemini"
-              >
-                <MapPin className="w-4 h-4 text-amber-500" /> Plot Setting
               </button>
             </div>
 
