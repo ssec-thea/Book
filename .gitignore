@@ -1,0 +1,13 @@
+node_modules/
+dist/
+build/
+coverage/
+logs/
+data/books/
+data/tmp/
+.env
+.env.local
+.DS_Store
+Thumbs.db
+*.log
+!.env.example
