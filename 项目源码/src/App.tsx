@@ -118,33 +118,25 @@ export default function App() {
       if (savedBooks) {
         setBooks(JSON.parse(savedBooks));
       } else {
-        setBooks(INITIAL_BOOKS);
+        setBooks([]);
       }
 
       if (savedReviews) {
         setReviews(JSON.parse(savedReviews));
       } else {
-        setReviews(INITIAL_REVIEWS);
+        setReviews([]);
       }
 
       if (savedBookmarks) {
         setBookmarks(JSON.parse(savedBookmarks));
       } else {
-        setBookmarks(INITIAL_BOOKMARKS);
+        setBookmarks([]);
       }
 
       if (savedUser) {
         setCurrentUser(JSON.parse(savedUser));
         setIsLoggedOut(false);
       } else {
-        const defaultUser = {
-          username: '书旅行者 (Voyager)',
-          email: 'voyager@bookvoyage.com',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=150&auto=format&fit=crop',
-          bio: '爱读书，也爱丈量世界的旅行者。Believe that reading is a voyage across space and time.'
-        };
-        setCurrentUser(defaultUser);
-        localStorage.setItem('bv_currentUser', JSON.stringify(defaultUser));
         setIsLoggedOut(true);
       }
     };
