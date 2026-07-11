@@ -294,25 +294,30 @@ export default function App() {
   const handleDeleteBook = (bookId: string) => {
     const updated = books.filter(b => b.id !== bookId);
     saveBooksState(updated);
-    // clean up associated reviews & bookmarks
     saveReviewsState(reviews.filter(r => r.bookId !== bookId));
     saveBookmarksState(bookmarks.filter(b => b.bookId !== bookId));
     setSelectedBook(null);
+    // 同步删除 API
+    const token = localStorage.getItem('bv_token');
+    if (token) {
+      api.books.delete(parseInt(bookId)).catch(() => {});
+    }
   };
 
   // Handle Moving Book to another Category/Shelf
   const handleMoveBookToCategory = (bookId: string, newCategory: string) => {
     const updated = books.map(b => {
       if (b.id === bookId) {
-        return {
-          ...b,
-          category: newCategory,
-          updatedAt: new Date().toISOString()
-        };
+        return { ...b, category: newCategory, updatedAt: new Date().toISOString() };
       }
       return b;
     });
     saveBooksState(updated);
+    // 同步 API
+    const token = localStorage.getItem('bv_token');
+    if (token) {
+      api.books.update(parseInt(bookId), { category: newCategory }).catch(() => {});
+    }
   };
 
   // Handle publishing a Review
