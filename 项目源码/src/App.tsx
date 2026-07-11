@@ -290,6 +290,23 @@ export default function App() {
     setActiveTab('shelf');
   };
 
+  // 仅数字ID同步到API（字符串ID仅为本地临时图书）
+  const syncDeleteToAPI = (bookId: string) => {
+    const numId = parseInt(bookId);
+    if (!isNaN(numId)) {
+      const token = localStorage.getItem('bv_token');
+      if (token) api.books.delete(numId).catch(() => {});
+    }
+  };
+
+  const syncMoveToAPI = (bookId: string, newCategory: string) => {
+    const numId = parseInt(bookId);
+    if (!isNaN(numId)) {
+      const token = localStorage.getItem('bv_token');
+      if (token) api.books.update(numId, { category: newCategory }).catch(() => {});
+    }
+  };
+
   // Handle Book Deletion
   const handleDeleteBook = (bookId: string) => {
     const updated = books.filter(b => b.id !== bookId);
@@ -297,27 +314,17 @@ export default function App() {
     saveReviewsState(reviews.filter(r => r.bookId !== bookId));
     saveBookmarksState(bookmarks.filter(b => b.bookId !== bookId));
     setSelectedBook(null);
-    // 同步删除 API
-    const token = localStorage.getItem('bv_token');
-    if (token) {
-      api.books.delete(parseInt(bookId)).catch(() => {});
-    }
+    syncDeleteToAPI(bookId);
   };
 
   // Handle Moving Book to another Category/Shelf
   const handleMoveBookToCategory = (bookId: string, newCategory: string) => {
     const updated = books.map(b => {
-      if (b.id === bookId) {
-        return { ...b, category: newCategory, updatedAt: new Date().toISOString() };
-      }
+      if (b.id === bookId) return { ...b, category: newCategory, updatedAt: new Date().toISOString() };
       return b;
     });
     saveBooksState(updated);
-    // 同步 API
-    const token = localStorage.getItem('bv_token');
-    if (token) {
-      api.books.update(parseInt(bookId), { category: newCategory }).catch(() => {});
-    }
+    syncMoveToAPI(bookId, newCategory);
   };
 
   // Handle publishing a Review
@@ -926,6 +933,19 @@ export default function App() {
               setIsReviewOpen(true);
             }}
             onDeleteBook={() => handleDeleteBook(selectedBook.id)}
+            isOwner={currentUser && (selectedBook.userId === currentUser.id || selectedBook.userId === currentUser.username)}
+            onAddToShelf={() => {
+              // 复制公开图书到自己的书架
+              const copied: Book = {
+                ...selectedBook,
+                id: `book_${Date.now()}`,
+                userId: currentUser?.username || 'user_1',
+                visibility: 'public',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+              saveBooksState([copied, ...books]);
+            }}
           />
         )}
 

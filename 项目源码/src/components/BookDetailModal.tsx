@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Book, Review, Bookmark } from '../types';
-import { Play, MessageSquare, Bookmark as BookmarkIcon, MapPin, Trash2, X, Star, Calendar, Clock, Globe } from 'lucide-react';
+import { Play, MessageSquare, Bookmark as BookmarkIcon, MapPin, Trash2, X, Star, Calendar, Clock, Globe, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface BookDetailModalProps {
@@ -11,6 +11,8 @@ interface BookDetailModalProps {
   onRead: () => void;
   onWriteReview: () => void;
   onDeleteBook: () => void;
+  onAddToShelf?: () => void;
+  isOwner?: boolean;
 }
 
 export default function BookDetailModal({
@@ -20,7 +22,9 @@ export default function BookDetailModal({
   onClose,
   onRead,
   onWriteReview,
-  onDeleteBook
+  onDeleteBook,
+  onAddToShelf,
+  isOwner = true,
 }: BookDetailModalProps) {
   const bookReviews = reviews.filter(r => r.bookId === book.id);
   const bookBookmarks = bookmarks.filter(b => b.bookId === book.id);
@@ -93,13 +97,24 @@ export default function BookDetailModal({
             </div>
           </div>
 
-          {/* Delete Book action */}
-          <button
-            onClick={onDeleteBook}
-            className="mt-8 text-[11px] text-red-400 hover:text-red-300 hover:underline flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <Trash2 className="w-3.5 h-3.5" /> Remove from shelf
-          </button>
+          {/* Delete Book action — 仅所有者可见 */}
+          {isOwner && (
+            <button
+              onClick={onDeleteBook}
+              className="mt-8 text-[11px] text-red-400 hover:text-red-300 hover:underline flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Remove from shelf
+            </button>
+          )}
+          {/* Add to My Shelf — 公开图书 */}
+          {!isOwner && onAddToShelf && (
+            <button
+              onClick={onAddToShelf}
+              className="mt-8 text-[11px] text-[#dcae1d] hover:text-[#f2efe9] hover:underline flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <BookOpen className="w-3.5 h-3.5" /> Add to My Shelf
+            </button>
+          )}
         </div>
 
         {/* Right Side: Detailed Info, Tabs, Reviews, Bookmarks */}
