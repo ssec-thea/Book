@@ -737,6 +737,7 @@ function EpubInlineReader({
   onBack: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const renditionRef = useRef<any>(null);
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [progress, setProgress] = useState<string>("Downloading...");
@@ -771,6 +772,7 @@ function EpubInlineReader({
           height: "100%",
           flow: "scrolled",
         });
+        renditionRef.current = rendition;
 
         await rendition.display();
         setProgress("Ready");
@@ -803,9 +805,9 @@ function EpubInlineReader({
         </div>
         <span className="text-[10px] font-mono text-[#9c9284]">{progress}</span>
       </div>
-      <div className="flex-1 bg-[#181414] relative overflow-hidden">
+      <div className="flex-1 bg-[#181414] relative">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center text-[#dcae1d] text-sm">{progress}</div>
+          <div className="absolute inset-0 flex items-center justify-center text-[#dcae1d] text-sm z-10">{progress}</div>
         )}
         {error ? (
           <div className="h-full flex flex-col items-center justify-center gap-4 text-[#f2efe9] px-6 text-center">
@@ -816,9 +818,20 @@ function EpubInlineReader({
             </a>
           </div>
         ) : (
-          <div ref={containerRef} className="w-full h-full" />
+          <div ref={containerRef} className="w-full h-full overflow-auto" />
         )}
       </div>
+      {/* EPUB 翻页导航 */}
+      {!isLoading && !error && (
+        <div className="h-12 px-6 border-t border-[#2c241d] bg-[#14110e]/80 backdrop-blur-md flex items-center justify-center gap-6 shrink-0">
+          <button onClick={() => renditionRef.current?.prev()} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors">
+            <ChevronLeft className="w-4 h-4" /> Previous
+          </button>
+          <button onClick={() => renditionRef.current?.next()} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors">
+            Next <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -833,7 +846,6 @@ function PdfCanvasReader({
   onBack: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -841,6 +853,7 @@ function PdfCanvasReader({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const renderTaskRef = useRef<any>(null);
+  const [renderKey, setRenderKey] = useState(0); // 强制 canvas 刷新
 
   useEffect(() => {
     let cancelled = false;
@@ -913,10 +926,10 @@ function PdfCanvasReader({
           <button onClick={() => setScale((s) => Math.min(3, s + 0.2))} className="p-1.5 text-[#9c9284] hover:text-[#f2efe9]"><ZoomIn className="w-4 h-4" /></button>
         </div>
       </div>
-      <div ref={containerRef} className="flex-1 overflow-auto bg-[#2d2a26] flex justify-center py-4">
+      <div className="flex-1 overflow-auto bg-[#2d2a26] flex justify-center py-4">
         {loading && <div className="text-[#dcae1d] text-sm self-center">Loading PDF...</div>}
         {error && <div className="text-red-400 text-sm self-center">{error}</div>}
-        {!loading && !error && <canvas ref={canvasRef} className="shadow-2xl" />}
+        {!loading && !error && <canvas ref={canvasRef} key={pageNum} className="shadow-2xl" />}
       </div>
       <div className="h-12 px-6 border-t border-[#2c241d] bg-[#14110e]/80 backdrop-blur-md flex items-center justify-center gap-6 shrink-0">
         <button onClick={goPrev} disabled={pageNum <= 1} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors disabled:opacity-30">

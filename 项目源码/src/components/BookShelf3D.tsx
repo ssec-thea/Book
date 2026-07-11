@@ -45,14 +45,18 @@ export default function BookShelf3D({
   const [isTrashOver, setIsTrashOver] = useState<boolean>(false);
   const [bookToDelete, setBookToDelete] = useState<Book | null>(null);
 
-  // Derive all active categories (standard ones plus any custom ones from imported books)
+  // 记录曾出现过的所有分类（即使为空也保留）
+  const seenCategories = useRef<string[]>([...STANDARD_CATEGORIES]);
+
   const allCategories = useMemo(() => {
     const customCats = books
       .map((b) => b.category)
       .filter((cat) => cat && !STANDARD_CATEGORIES.includes(cat));
-    // Remove duplicates
     const uniqueCustom = Array.from(new Set(customCats));
-    return [...STANDARD_CATEGORIES, ...uniqueCustom];
+    // 合并历史分类，防止空分类消失
+    const all = [...STANDARD_CATEGORIES, ...Array.from(new Set([...seenCategories.current, ...uniqueCustom]))];
+    seenCategories.current = all;
+    return all;
   }, [books]);
 
   // Group books by categories
