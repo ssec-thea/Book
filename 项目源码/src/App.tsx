@@ -933,7 +933,7 @@ export default function App() {
               setIsReviewOpen(true);
             }}
             onDeleteBook={() => handleDeleteBook(selectedBook.id)}
-            isOwner={currentUser && (selectedBook.userId === currentUser.id || selectedBook.userId === currentUser.username)}
+            isOwner={currentUser && (String(selectedBook.userId) === String(currentUser.id) || selectedBook.userId === currentUser.username)}
             onAddToShelf={() => {
               // 复制公开图书到自己的书架
               const copied: Book = {

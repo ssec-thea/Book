@@ -10,6 +10,8 @@ import {
   Moon,
   Sun,
   Coffee,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import * as pdfjsLib from "pdfjs-dist";
@@ -736,9 +738,12 @@ function EpubInlineReader({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const renditionRef = useRef<any>(null);
+  const bookRef = useRef<any>(null);
   const [error, setError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [progress, setProgress] = useState<string>("Downloading...");
+  const [toc, setToc] = useState<any[]>([]);
+  const [showToc, setShowToc] = useState(false);
 
   useEffect(() => {
     let rendition: any = null;
@@ -761,7 +766,14 @@ function EpubInlineReader({
 
         setProgress("Parsing...");
         book = ePub(buffer);
+        bookRef.current = book;
         await book.ready;
+        // 提取目录
+        if (book.navigation) {
+          setToc(book.navigation.toc || []);
+        } else if (book.loaded?.navigation) {
+          setToc(book.loaded.navigation.toc || []);
+        }
 
         if (cancelled || !containerRef.current) { book.destroy(); return; }
 
@@ -807,8 +819,25 @@ function EpubInlineReader({
           <span className="text-[9px] font-mono uppercase tracking-widest text-[#dcae1d]">EPUB Reader</span>
           <h1 className="text-xs font-bold text-serif text-[#f2efe9] truncate max-w-[200px] mx-auto">{title}</h1>
         </div>
-        <span className="text-[10px] font-mono text-[#9c9284]">{progress}</span>
+        <button onClick={() => setShowToc(!showToc)} className="text-[10px] font-mono text-[#dcae1d] hover:underline">
+          {toc.length > 0 ? `TOC (${toc.length})` : progress}
+        </button>
       </div>
+      {/* TOC 侧边栏 */}
+      {showToc && toc.length > 0 && (
+        <div className="absolute top-12 right-0 z-20 w-64 max-h-[80vh] bg-[#1a1612] border border-[#2c241d] rounded-bl-xl shadow-2xl overflow-y-auto">
+          <div className="p-3 border-b border-[#2c241d] text-[10px] font-mono uppercase text-[#9c9284]">Contents</div>
+          {toc.map((item: any, i: number) => (
+            <button
+              key={i}
+              onClick={() => { renditionRef.current?.display(item.href); setShowToc(false); }}
+              className="w-full text-left px-3 py-2 text-xs text-[#f2efe9] hover:bg-[#2c241d] border-b border-[#1c1713] truncate"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex-1 bg-[#181414] relative">
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center text-[#dcae1d] text-sm z-10">{progress}</div>
@@ -855,6 +884,7 @@ function PdfCanvasReader({
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  const [pdfScale, setPdfScale] = useState(1.5);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -898,7 +928,7 @@ function PdfCanvasReader({
         wrapper.innerHTML = '';
 
         const page = await pdfDoc.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1.5 });
+        const viewport = page.getViewport({ scale: pdfScale });
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -917,7 +947,7 @@ function PdfCanvasReader({
     };
     render();
     return () => { cancelled = true; };
-  }, [pdfDoc, pageNum]);
+  }, [pdfDoc, pageNum, pdfScale]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0e0c0a] select-none">
@@ -929,7 +959,11 @@ function PdfCanvasReader({
           <span className="text-[9px] font-mono uppercase tracking-widest text-[#dcae1d]">PDF Reader</span>
           <h1 className="text-xs font-bold text-serif text-[#f2efe9] truncate max-w-[200px] mx-auto">{title}</h1>
         </div>
-        <span className="text-[10px] font-mono text-[#9c9284]">{pageNum} / {totalPages}</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setPdfScale(s => Math.max(0.5, s - 0.2))} className="p-1.5 text-[#9c9284] hover:text-[#f2efe9]" title="Zoom out"><ZoomOut className="w-4 h-4" /></button>
+          <span className="text-[10px] font-mono text-[#9c9284]">{pageNum} / {totalPages}</span>
+          <button onClick={() => setPdfScale(s => Math.min(3, s + 0.2))} className="p-1.5 text-[#9c9284] hover:text-[#f2efe9]" title="Zoom in"><ZoomIn className="w-4 h-4" /></button>
+        </div>
       </div>
       <div className="flex-1 overflow-auto bg-[#2d2a26] flex justify-center py-4">
         {loading && <div className="text-[#dcae1d] text-sm self-center">Loading PDF...</div>}
