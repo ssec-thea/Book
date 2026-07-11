@@ -10,8 +10,6 @@ import {
   Moon,
   Sun,
   Coffee,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import * as pdfjsLib from "pdfjs-dist";
@@ -770,7 +768,8 @@ function EpubInlineReader({
         rendition = book.renderTo(containerRef.current, {
           width: "100%",
           height: "100%",
-          flow: "scrolled",
+          flow: "paginated",
+          spread: "none",
         });
         renditionRef.current = rendition;
 
@@ -852,7 +851,7 @@ function PdfCanvasReader({
   title: string;
   onBack: () => void;
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -877,6 +876,7 @@ function PdfCanvasReader({
         setTotalPages(pdf.numPages);
         setPageNum(1);
         setLoading(false);
+        console.log('[PDF] Loaded:', pdf.numPages, 'pages');
       } catch (err: any) {
         setError(`Failed: ${err.message}`);
         setLoading(false);
@@ -886,27 +886,31 @@ function PdfCanvasReader({
     return () => { cancelled = true; };
   }, [fileUrl]);
 
-  // 渲染当前页
+  // 渲染页面 — 每次 pageNum 变化时创建新 canvas
   useEffect(() => {
-    if (!pdfDoc || !canvasRef.current) return;
+    if (!pdfDoc || !wrapperRef.current) return;
     let cancelled = false;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d')!;
-    // 清除旧画面
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const render = async () => {
       try {
+        // 清空旧 canvas
+        const wrapper = wrapperRef.current!;
+        wrapper.innerHTML = '';
+
         const page = await pdfDoc.getPage(pageNum);
         const viewport = page.getViewport({ scale: 1.5 });
+        const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         canvas.style.width = `${viewport.width}px`;
         canvas.style.height = `${viewport.height}px`;
+        canvas.className = 'shadow-2xl';
+        wrapper.appendChild(canvas);
+
         if (cancelled) return;
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext('2d')!;
         await page.render({ canvasContext: ctx, viewport }).promise;
+        console.log('[PDF] Rendered page:', pageNum);
       } catch (e: any) {
         if (e.name !== 'RenderingCancelledException') console.error(e);
       }
@@ -930,7 +934,7 @@ function PdfCanvasReader({
       <div className="flex-1 overflow-auto bg-[#2d2a26] flex justify-center py-4">
         {loading && <div className="text-[#dcae1d] text-sm self-center">Loading PDF...</div>}
         {error && <div className="text-red-400 text-sm self-center">{error}</div>}
-        <canvas ref={canvasRef} key={pageNum} className="shadow-2xl" />
+        <div ref={wrapperRef} />
       </div>
       <div className="h-12 px-6 border-t border-[#2c241d] bg-[#14110e]/80 backdrop-blur-md flex items-center justify-center gap-6 shrink-0">
         <button onClick={() => setPageNum(p => Math.max(1, p - 1))} disabled={pageNum <= 1} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors disabled:opacity-30">
