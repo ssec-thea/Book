@@ -12,6 +12,13 @@ interface WorldMapProps {
   onBookClick: (book: Book) => void;
 }
 
+// 从 API 加载全部公开书评（地图用，不依赖当前用户）
+function usePublicReviews(): Review[] {
+  const [publicReviews, setPublicReviews] = useState<Review[]>([]);
+  useEffect(() => { import('../services/api').then(m => m.api.reviews.list({ visibility: 1, size: 500 }).then(r => { if (r?.data?.list) setPublicReviews(r.data.list); }).catch(() => {})); }, []);
+  return publicReviews;
+}
+
 // Pastel colors used to render mapped countries when selected/highlighted
 const COUNTRY_COLORS: { [code: string]: string } = {
   US: '#50756C', // Slate Green
@@ -40,6 +47,14 @@ const COUNTRY_COLORS: { [code: string]: string } = {
 };
 
 export default function WorldMap({ books, reviews, activeBookId, onBookClick }: WorldMapProps) {
+  // 加载全部公开书评（地图读者足迹模式用）
+  const allPublicReviews = usePublicReviews();
+  const mergedReviews = useMemo(() => {
+    const seen = new Set(reviews.map(r => r.id));
+    const extra = allPublicReviews.filter(r => !seen.has(r.id));
+    return [...reviews, ...extra];
+  }, [reviews, allPublicReviews]);
+
   // Map settings
   const [mapMode, setMapMode] = useState<'author_origin' | 'reader_anchor'>('author_origin');
   const [zoom, setZoom] = useState<number>(1);
@@ -115,13 +130,12 @@ export default function WorldMap({ books, reviews, activeBookId, onBookClick }: 
         }
       });
     } else if (mapMode === 'reader_anchor') {
-      reviews.forEach(review => {
-        if (review.visibility === 'private') return; // Exclude private notes from footprint maps
+      mergedReviews.forEach(review => {
+        if (review.visibility === 'private') return;
         if (activeBookId && review.bookId !== activeBookId) return;
 
-        // Check if the review's associated book exists
         const matchedBook = books.find(b => b.id === review.bookId);
-        if (!matchedBook) return;
+        // 即使无匹配图书也显示公开书评（来自其他用户的公开内容）
 
         // Extract country from locationName (e.g. "Paris, France" or simply "France")
         const parts = review.locationName.split(',');
@@ -131,9 +145,7 @@ export default function WorldMap({ books, reviews, activeBookId, onBookClick }: 
           const code = geoInfo[1].code;
           if (results[code]) {
             results[code].reviews.push(review);
-            
-            // Collect associated book to display alongside review
-            if (!results[code].books.some(b => b.id === matchedBook.id)) {
+            if (matchedBook && !results[code].books.some(b => b.id === matchedBook.id)) {
               results[code].books.push(matchedBook);
             }
           }
@@ -147,7 +159,7 @@ export default function WorldMap({ books, reviews, activeBookId, onBookClick }: 
       countryData: results,
       mappedCountryCount
     };
-  }, [mapMode, books, reviews, activeBookId]);
+  }, [mapMode, books, mergedReviews, activeBookId]);
 
   // Map zooming handlers
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.25, 3.5));
