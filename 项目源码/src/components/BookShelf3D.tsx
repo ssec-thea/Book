@@ -1,7 +1,15 @@
-import React, { useState, useMemo } from 'react';
-import { Book } from '../types';
-import { BookOpen, ChevronLeft, ChevronRight, Trash2, ShieldAlert, Layers, AlertTriangle } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useMemo, useRef } from "react";
+import { Book } from "../types";
+import {
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  ShieldAlert,
+  Layers,
+  AlertTriangle,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface BookShelf3DProps {
   books: Book[];
@@ -11,20 +19,25 @@ interface BookShelf3DProps {
 }
 
 const STANDARD_CATEGORIES = [
-  'Literature',
-  'Science Fiction',
-  'Magical Realism',
-  'Modernist Fiction',
-  'Japanese Literature',
-  'Historical Fiction',
-  'Romantic Fiction',
-  'Philosophy'
+  "Literature",
+  "Science Fiction",
+  "Magical Realism",
+  "Modernist Fiction",
+  "Japanese Literature",
+  "Historical Fiction",
+  "Romantic Fiction",
+  "Philosophy",
 ];
 
 // Global fallback to ensure drag/drop is perfectly robust in sandboxed iframes
 let backupDraggedBookId: string | null = null;
 
-export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBook }: BookShelf3DProps) {
+export default function BookShelf3D({
+  books,
+  onBookClick,
+  onMoveBook,
+  onDeleteBook,
+}: BookShelf3DProps) {
   // Local states for dragging
   const [isDraggingActive, setIsDraggingActive] = useState<boolean>(false);
   const [draggedBookId, setDraggedBookId] = useState<string | null>(null);
@@ -35,8 +48,8 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
   // Derive all active categories (standard ones plus any custom ones from imported books)
   const allCategories = useMemo(() => {
     const customCats = books
-      .map(b => b.category)
-      .filter(cat => cat && !STANDARD_CATEGORIES.includes(cat));
+      .map((b) => b.category)
+      .filter((cat) => cat && !STANDARD_CATEGORIES.includes(cat));
     // Remove duplicates
     const uniqueCustom = Array.from(new Set(customCats));
     return [...STANDARD_CATEGORIES, ...uniqueCustom];
@@ -45,11 +58,11 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
   // Group books by categories
   const booksByCategory = useMemo(() => {
     const groups: { [cat: string]: Book[] } = {};
-    allCategories.forEach(cat => {
+    allCategories.forEach((cat) => {
       groups[cat] = [];
     });
-    books.forEach(b => {
-      const cat = b.category || 'Literature';
+    books.forEach((b) => {
+      const cat = b.category || "Literature";
       if (!groups[cat]) {
         groups[cat] = [];
       }
@@ -61,11 +74,12 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, bookId: string) => {
+    draggingRef.current = true;
     setDraggedBookId(bookId);
     backupDraggedBookId = bookId;
     setIsDraggingActive(true);
-    e.dataTransfer.setData('text/plain', bookId);
-    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData("text/plain", bookId);
+    e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragEnd = () => {
@@ -74,44 +88,92 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
     backupDraggedBookId = null;
     setDragOverShelf(null);
     setIsTrashOver(false);
+    setTimeout(() => { draggingRef.current = false; }, 50);
+  };
+
+  const shelfDragCounters = React.useRef<Record<string, number>>({});
+  const trashDragCounter = React.useRef<number>(0);
+  const draggingRef = useRef(false); // 防止拖动时触发 onClick
+
+  const handleDragEnterShelf = (e: React.DragEvent, category: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    shelfDragCounters.current[category] =
+      (shelfDragCounters.current[category] || 0) + 1;
+    setDragOverShelf(category);
+    e.dataTransfer.dropEffect = "move";
   };
 
   const handleDragOverShelf = (e: React.DragEvent, category: string) => {
     e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
     if (dragOverShelf !== category) {
       setDragOverShelf(category);
     }
   };
 
-  const handleDragLeaveShelf = () => {
-    setDragOverShelf(null);
+  const handleDragLeaveShelf = (e: React.DragEvent, category: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    shelfDragCounters.current[category] = Math.max(
+      (shelfDragCounters.current[category] || 1) - 1,
+      0,
+    );
+    if (shelfDragCounters.current[category] === 0) {
+      delete shelfDragCounters.current[category];
+      if (dragOverShelf === category) {
+        setDragOverShelf(null);
+      }
+    }
   };
 
   const handleDropOnShelf = (e: React.DragEvent, category: string) => {
     e.preventDefault();
-    const bookId = e.dataTransfer.getData('text/plain') || draggedBookId || backupDraggedBookId;
+    const bookId =
+      e.dataTransfer.getData("text/plain") ||
+      draggedBookId ||
+      backupDraggedBookId;
     if (bookId) {
       onMoveBook(bookId, category);
     }
     handleDragEnd();
   };
 
+  const handleDragEnterTrash = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    trashDragCounter.current += 1;
+    setIsTrashOver(true);
+    e.dataTransfer.dropEffect = "move";
+  };
+
   const handleDragOverTrash = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
     if (!isTrashOver) {
       setIsTrashOver(true);
     }
   };
 
-  const handleDragLeaveTrash = () => {
-    setIsTrashOver(false);
+  const handleDragLeaveTrash = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    trashDragCounter.current = Math.max(trashDragCounter.current - 1, 0);
+    if (trashDragCounter.current === 0) {
+      setIsTrashOver(false);
+    }
   };
 
   const handleDropOnTrash = (e: React.DragEvent) => {
     e.preventDefault();
-    const bookId = e.dataTransfer.getData('text/plain') || draggedBookId || backupDraggedBookId;
+    const bookId =
+      e.dataTransfer.getData("text/plain") ||
+      draggedBookId ||
+      backupDraggedBookId;
     if (bookId) {
-      const match = books.find(b => b.id === bookId);
+      const match = books.find((b) => b.id === bookId);
       if (match) {
         setBookToDelete(match);
       }
@@ -121,13 +183,12 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
 
   return (
     <div className="w-full space-y-6 py-2 relative min-h-[580px] flex flex-col justify-between select-none">
-      
       {/* Dynamic Instruction & Drag Notice */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3 bg-[#14110e]/60 border border-[#231a14]/60 rounded-xl">
         <p className="text-xs text-[#9c9284] flex items-center gap-2">
           <Layers className="w-3.5 h-3.5 text-[#dcae1d]" />
           <span>
-            {isDraggingActive 
+            {isDraggingActive
               ? "⚡ Drag the book onto another shelf, or drop it into the Trash Can to delete it."
               : "💡 Tip: You can drag books to categorize them between shelves, or drag to trash to delete."}
           </span>
@@ -141,31 +202,38 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
           return (
             <div
               key={category}
+              onDragEnter={(e) => handleDragEnterShelf(e, category)}
               onDragOver={(e) => handleDragOverShelf(e, category)}
-              onDragLeave={handleDragLeaveShelf}
+              onDragLeave={(e) => handleDragLeaveShelf(e, category)}
               onDrop={(e) => handleDropOnShelf(e, category)}
               className={`relative rounded-2xl transition-all duration-300 ${
-                isOver ? 'bg-[#dcae1d]/5 ring-2 ring-[#dcae1d]/40 scale-[1.01]' : 'bg-[#14110e]/20'
+                isOver
+                  ? "bg-[#dcae1d]/5 ring-2 ring-[#dcae1d]/40 scale-[1.01]"
+                  : "bg-[#14110e]/20"
               }`}
             >
               {/* Row Shelf Name */}
               <div className="flex items-center justify-between mb-2 px-2 pt-2">
                 <h3 className="text-xs font-semibold tracking-wider font-mono text-[#9c9284] uppercase flex items-center gap-2">
-                  <span className={`w-1.5 h-1.5 rounded-full ${isOver ? 'bg-[#dcae1d] animate-ping' : 'bg-[#dcae1d]'}`}></span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${isOver ? "bg-[#dcae1d] animate-ping" : "bg-[#dcae1d]"}`}
+                  ></span>
                   {category}
                 </h3>
-                <span className="text-[10px] font-mono text-[#5c544a]">{catBooks.length} books</span>
+                <span className="text-[10px] font-mono text-[#5c544a]">
+                  {catBooks.length} books
+                </span>
               </div>
 
               {/* Realistic 3D Bookshelf Row */}
               <div className="relative pb-6 px-4 border border-[#231a14]/30 rounded-2xl overflow-x-auto scrollbar-none min-h-[190px]">
-                
                 <div className="flex items-end gap-5 md:gap-8 pt-5 px-3">
                   {catBooks.map((book) => {
                     const hue = (book.title.charCodeAt(0) * 12) % 360;
                     const coverStyle = {
                       borderLeft: `4px solid hsl(${hue}, 40%, 25%)`,
-                      boxShadow: '8px 8px 16px rgba(0, 0, 0, 0.7), inset -4px 0 8px rgba(0,0,0,0.5)',
+                      boxShadow:
+                        "8px 8px 16px rgba(0, 0, 0, 0.7), inset -4px 0 8px rgba(0,0,0,0.5)",
                     };
 
                     const isBeingDragged = draggedBookId === book.id;
@@ -177,15 +245,18 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
                         onDragStart={(e) => handleDragStart(e, book.id)}
                         onDragEnd={handleDragEnd}
                         whileHover={{ y: -10, rotateY: -8, scale: 1.02 }}
-                        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                        onClick={() => onBookClick(book)}
+                        transition={{
+                          type: "spring",
+                          stiffness: 260,
+                          damping: 20,
+                        }}
+                        onClick={() => { if (!draggingRef.current) onBookClick(book); }}
                         className={`relative flex flex-col items-center group cursor-grab active:cursor-grabbing transition-opacity ${
-                          isBeingDragged ? 'opacity-30' : 'opacity-100'
+                          isBeingDragged ? "opacity-30" : "opacity-100"
                         }`}
                       >
                         {/* 3D Book Block Wrapper */}
                         <div className="relative w-24 md:w-28 h-32 md:h-36 transition-all duration-300">
-                          
                           {/* Book Cover */}
                           {book.cover ? (
                             <div
@@ -226,7 +297,9 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
                           {/* Read progress ribbon */}
                           {book.progress > 0 && (
                             <div className="absolute top-2 right-2 px-1 py-0.5 bg-[#dcae1d] text-[#12100e] text-[8px] font-bold font-mono rounded shadow-md">
-                              {book.progress === 100 ? 'READ' : `${book.progress}%`}
+                              {book.progress === 100
+                                ? "READ"
+                                : `${book.progress}%`}
                             </div>
                           )}
                         </div>
@@ -236,7 +309,9 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
                           <h4 className="text-[11px] font-medium text-[#f2efe9] truncate group-hover:text-[#dcae1d] transition-all">
                             {book.title}
                           </h4>
-                          <p className="text-[9px] text-[#9c9284] truncate mt-0.5">{book.author}</p>
+                          <p className="text-[9px] text-[#9c9284] truncate mt-0.5">
+                            {book.author}
+                          </p>
                         </div>
                       </motion.div>
                     );
@@ -262,34 +337,48 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
       </div>
 
       {/* Floating Animated Trash Target Area (Slide in ONLY when dragging) */}
-      <AnimatePresence>
-        {isDraggingActive && (
+      {isDraggingActive && (
+        <div
+          onDragEnter={handleDragEnterTrash}
+          onDragOver={handleDragOverTrash}
+          onDragLeave={handleDragLeaveTrash}
+          onDrop={handleDropOnTrash}
+          style={{
+            position: "fixed",
+            bottom: "5rem",
+            right: "1.5rem",
+            zIndex: 40,
+          }}
+        >
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            onDragOver={handleDragOverTrash}
-            onDragLeave={handleDragLeaveTrash}
-            onDrop={handleDropOnTrash}
-            className={`fixed bottom-20 right-6 md:right-12 z-40 p-6 rounded-full shadow-2xl flex flex-col items-center justify-center border transition-all ${
-              isTrashOver 
-                ? 'bg-red-950/90 border-red-500 text-red-400 scale-110 ring-4 ring-red-500/30' 
-                : 'bg-[#181210]/95 border-red-900/50 text-red-600/80 hover:text-red-500'
+            className={`p-6 rounded-full shadow-2xl flex flex-col items-center justify-center border transition-all ${
+              isTrashOver
+                ? "bg-red-950/90 border-red-500 text-red-400 scale-110 ring-4 ring-red-500/30"
+                : "bg-[#181210]/95 border-red-900/50 text-red-600/80 hover:text-red-500"
             }`}
           >
-            <Trash2 className={`w-8 h-8 ${isTrashOver ? 'animate-bounce' : 'animate-pulse'}`} />
+            <Trash2
+              className={`w-8 h-8 ${isTrashOver ? "animate-bounce" : "animate-pulse"}`}
+            />
             <span className="text-[9px] font-mono font-bold uppercase tracking-widest mt-1.5">
               {isTrashOver ? "Drop to Remove" : "Drag to Delete"}
             </span>
           </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
       {books.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 bg-[#14110e]/30 border border-dashed border-[#231a14] rounded-2xl">
           <BookOpen className="w-10 h-10 text-[#5c544a] mb-3 animate-pulse" />
-          <h4 className="text-sm font-semibold text-[#f2efe9]">Your Digital Bookshelf is Empty</h4>
-          <p className="text-xs text-[#9c9284] mt-1">Import some books using the 'Import Book' utility above.</p>
+          <h4 className="text-sm font-semibold text-[#f2efe9]">
+            Your Digital Bookshelf is Empty
+          </h4>
+          <p className="text-xs text-[#9c9284] mt-1">
+            Import some books using the 'Import Book' utility above.
+          </p>
         </div>
       )}
 
@@ -307,9 +396,13 @@ export default function BookShelf3D({ books, onBookClick, onMoveBook, onDeleteBo
                 <AlertTriangle className="w-6 h-6 animate-pulse" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-serif text-[#f2efe9]">Remove Book from Desk?</h3>
+                <h3 className="text-sm font-bold text-serif text-[#f2efe9]">
+                  Remove Book from Desk?
+                </h3>
                 <p className="text-xs text-[#9c9284] leading-relaxed">
-                  Are you sure you want to delete <strong>{bookToDelete.title}</strong>? All reading footprints, stats, and bookmarks will be cleared.
+                  Are you sure you want to delete{" "}
+                  <strong>{bookToDelete.title}</strong>? All reading footprints,
+                  stats, and bookmarks will be cleared.
                 </p>
               </div>
               <div className="flex gap-3 pt-2">

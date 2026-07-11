@@ -12,6 +12,7 @@ import readingRoutes from "./routes/reading";
 import bookmarkRoutes from "./routes/bookmarks";
 import reviewRoutes from "./routes/reviews";
 import mapRoutes from "./routes/map";
+import ossRoutes from "./routes/oss";
 
 dotenv.config();
 
@@ -29,6 +30,15 @@ app.use("/api/reading", readingRoutes);
 app.use("/api/bookmarks", bookmarkRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/map", mapRoutes);
+app.use("/api/oss", ossRoutes);
+
+// ──────────────────────────────────────
+// 全局错误处理中间件
+// ──────────────────────────────────────
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[Server] Unhandled error:', err.message, err.stack);
+  res.status(500).json({ code: 500, message: err.message || 'Internal server error' });
+});
 
 // Lazy initialization of Gemini API
 let aiClient: GoogleGenAI | null = null;

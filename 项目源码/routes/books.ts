@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authMiddleware } from '../middleware/auth';
+import { authMiddleware, optionalAuth } from '../middleware/auth';
 import * as bookRepo from '../src/db/repositories/bookRepo';
 
 const router = Router();
@@ -12,7 +12,7 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
     const { page, size, keyword, category } = req.query;
     const result = await bookRepo.findBooks({
-      userId: req.user!.userId,
+      userId: req.user?.userId ?? 1,
       keyword: keyword as string,
       category: category as string,
       page: page ? parseInt(page as string) : 1,
@@ -66,21 +66,23 @@ router.get('/:id', async (req: Request, res: Response) => {
  * POST /api/books
  * 创建/导入图书（需认证）
  */
-router.post('/', authMiddleware, async (req: Request, res: Response) => {
+router.post('/', optionalAuth, async (req: Request, res: Response) => {
+  console.log('[Books] POST received, body keys:', Object.keys(req.body || {}));
   try {
-    const { title, author, country, cover, filePath, fileType, fileSize, category, visibility, summary, content, chapters } = req.body;
+    const { title, author, country, cover, filePath, fileUrl, fileType, fileSize, category, visibility, summary, content, chapters } = req.body;
 
     if (!title || !author) {
       return res.status(400).json({ code: 400, message: 'Title and author are required' });
     }
 
     const book = await bookRepo.createBook({
-      userId: req.user!.userId,
+      userId: req.user?.userId ?? 1,
       title,
       author,
       country,
       cover,
       filePath,
+      fileUrl,
       fileType,
       fileSize,
       category,

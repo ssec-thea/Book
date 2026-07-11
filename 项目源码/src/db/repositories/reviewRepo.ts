@@ -41,7 +41,7 @@ export async function createReview(data: {
   visibility?: number;
 }): Promise<ReviewRow> {
   const pool = getPool();
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO reviews (user_id, book_id, title, content, score, longitude, latitude, location_name, visibility)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -51,7 +51,7 @@ export async function createReview(data: {
     ]
   );
 
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM reviews WHERE id = ?', [result.insertId]
   );
   return rows[0] as ReviewRow;
@@ -88,12 +88,12 @@ export async function findReviews(filters: ReviewFilters): Promise<{
   const size = filters.size || 20;
   const offset = (page - 1) * size;
 
-  const [countRows] = await pool.execute<RowDataPacket[]>(
+  const [countRows] = await pool.query<RowDataPacket[]>(
     `SELECT COUNT(*) as total FROM reviews r ${where}`, values
   );
   const total = (countRows[0] as any).total;
 
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT r.*, u.username, u.avatar as user_avatar
      FROM reviews r
      LEFT JOIN users u ON r.user_id = u.id
@@ -111,7 +111,7 @@ export async function findReviews(filters: ReviewFilters): Promise<{
  */
 export async function findPublicReviews(): Promise<ReviewRow[]> {
   const pool = getPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT r.*, u.username, u.avatar as user_avatar
      FROM reviews r
      LEFT JOIN users u ON r.user_id = u.id
@@ -140,7 +140,7 @@ export async function updateReview(
   if (updates.length === 0) return false;
   values.push(id);
 
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     `UPDATE reviews SET ${updates.join(', ')} WHERE id = ?`, values
   );
   return result.affectedRows > 0;
@@ -151,7 +151,7 @@ export async function updateReview(
  */
 export async function deleteReview(id: number): Promise<boolean> {
   const pool = getPool();
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     'DELETE FROM reviews WHERE id = ?', [id]
   );
   return result.affectedRows > 0;

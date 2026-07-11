@@ -24,13 +24,13 @@ export async function createBookmark(data: {
   textSnippet?: string;
 }): Promise<BookmarkRow> {
   const pool = getPool();
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO bookmarks (book_id, user_id, position, chapter_title, note, text_snippet)
      VALUES (?, ?, ?, ?, ?, ?)`,
     [data.bookId, data.userId, data.position, data.chapterTitle || '', data.note || '', data.textSnippet || '']
   );
 
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM bookmarks WHERE id = ?', [result.insertId]
   );
   return rows[0] as BookmarkRow;
@@ -41,7 +41,7 @@ export async function createBookmark(data: {
  */
 export async function findByBookId(bookId: number): Promise<BookmarkRow[]> {
   const pool = getPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM bookmarks WHERE book_id = ? ORDER BY position ASC',
     [bookId]
   );
@@ -56,7 +56,7 @@ export async function findByUserAndBook(
   bookId: number
 ): Promise<BookmarkRow[]> {
   const pool = getPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM bookmarks WHERE user_id = ? AND book_id = ? ORDER BY position ASC',
     [userId, bookId]
   );
@@ -68,7 +68,7 @@ export async function findByUserAndBook(
  */
 export async function deleteBookmark(id: number): Promise<boolean> {
   const pool = getPool();
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     'DELETE FROM bookmarks WHERE id = ?', [id]
   );
   return result.affectedRows > 0;

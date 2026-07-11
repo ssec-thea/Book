@@ -14,6 +14,7 @@ export interface Book {
   country: string; // Author's nationality (e.g. "China", "United States")
   cover?: string;
   filePath?: string;
+  fileUrl?: string;    // OSS 文件访问 URL
   fileType: 'epub' | 'txt' | 'pdf';
   category: string;
   visibility: 'private' | 'public';

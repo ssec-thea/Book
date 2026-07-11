@@ -1,26 +1,57 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Book, Bookmark, Chapter } from '../types';
-import { ArrowLeft, BookOpen, Bookmark as BookmarkIcon, Settings, ChevronLeft, ChevronRight, Moon, Sun, Coffee } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Book, Bookmark, Chapter } from "../types";
+import {
+  ArrowLeft,
+  BookOpen,
+  Bookmark as BookmarkIcon,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Moon,
+  Sun,
+  Coffee,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import * as pdfjsLib from "pdfjs-dist";
+import ePub from "epubjs";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 interface BookReaderProps {
   book: Book;
   bookmarks: Bookmark[];
-  onBack: (readingTimeSeconds: number, currentProgress: number, currentPageNum: number) => void;
-  onAddBookmark: (position: number, chapterTitle: string, note: string, textSnippet: string) => void;
+  onBack: (
+    readingTimeSeconds: number,
+    currentProgress: number,
+    currentPageNum: number,
+  ) => void;
+  onAddBookmark: (
+    position: number,
+    chapterTitle: string,
+    note: string,
+    textSnippet: string,
+  ) => void;
   onDeleteBookmark: (bookmarkId: string) => void;
 }
 
-type ReaderTheme = 'parchment' | 'dark' | 'sepia' | 'light';
+type ReaderTheme = "parchment" | "dark" | "sepia" | "light";
 
-export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onDeleteBookmark }: BookReaderProps) {
+export default function BookReader({
+  book,
+  bookmarks,
+  onBack,
+  onAddBookmark,
+  onDeleteBookmark,
+}: BookReaderProps) {
   const [currentChapterIndex, setCurrentChapterIndex] = useState<number>(0);
   const [fontSize, setFontSize] = useState<number>(15); // in px
-  const [theme, setTheme] = useState<ReaderTheme>('parchment');
+  const [theme, setTheme] = useState<ReaderTheme>("parchment");
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showBookmarks, setShowBookmarks] = useState<boolean>(false);
-  const [bookmarkNote, setBookmarkNote] = useState<string>('');
-  
+  const [bookmarkNote, setBookmarkNote] = useState<string>("");
+
   // Page-flipping state within the active chapter
   const [currentPageInChapter, setCurrentPageInChapter] = useState<number>(0);
 
@@ -35,9 +66,10 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
     }
     return [
       {
-        title: 'Full Document Content',
-        content: book.content || 'Enjoy reading this magnificent literature voyage!'
-      }
+        title: "Full Document Content",
+        content:
+          book.content || "Enjoy reading this magnificent literature voyage!",
+      },
     ];
   }, [book]);
 
@@ -45,7 +77,10 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
   useEffect(() => {
     const totalChapters = chapters.length;
     if (book.currentPage && book.totalPages && totalChapters > 0) {
-      const savedIndex = Math.min(Math.floor((book.currentPage / book.totalPages) * totalChapters), totalChapters - 1);
+      const savedIndex = Math.min(
+        Math.floor((book.currentPage / book.totalPages) * totalChapters),
+        totalChapters - 1,
+      );
       setCurrentChapterIndex(savedIndex >= 0 ? savedIndex : 0);
     } else {
       setCurrentChapterIndex(0);
@@ -56,44 +91,52 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
   // Track active reading time
   useEffect(() => {
     startTimeRef.current = Date.now();
-    
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        accumulatedTimeRef.current += Math.floor((Date.now() - startTimeRef.current) / 1000);
+        accumulatedTimeRef.current += Math.floor(
+          (Date.now() - startTimeRef.current) / 1000,
+        );
       } else {
         startTimeRef.current = Date.now();
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
-  const safeIndex = isNaN(currentChapterIndex) || currentChapterIndex < 0 || currentChapterIndex >= chapters.length
-    ? 0
-    : currentChapterIndex;
+  const safeIndex =
+    isNaN(currentChapterIndex) ||
+    currentChapterIndex < 0 ||
+    currentChapterIndex >= chapters.length
+      ? 0
+      : currentChapterIndex;
 
-  const currentChapter = chapters[safeIndex] || { title: 'Chapter', content: 'Enjoy reading!' };
+  const currentChapter = chapters[safeIndex] || {
+    title: "Chapter",
+    content: "Enjoy reading!",
+  };
 
   // Split chapter content into readable pages of roughly 800 characters, respecting paragraphs and line breaks
   const chapterPages = useMemo(() => {
-    const text = currentChapter.content || '';
+    const text = currentChapter.content || "";
     if (!text.trim()) {
-      return ['Enjoy reading this segment!'];
+      return ["Enjoy reading this segment!"];
     }
 
     const computedPages: string[] = [];
-    let currentPageText = '';
+    let currentPageText = "";
     const lines = text.split(/\r?\n/);
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (line.length > 800) {
         if (currentPageText.trim()) {
           computedPages.push(currentPageText.trim());
-          currentPageText = '';
+          currentPageText = "";
         }
         let index = 0;
         while (index < line.length) {
@@ -102,25 +145,25 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
           index += 800;
         }
       } else {
-        if ((currentPageText + '\n' + line).length > 800) {
+        if ((currentPageText + "\n" + line).length > 800) {
           if (currentPageText.trim()) {
             computedPages.push(currentPageText.trim());
           }
           currentPageText = line;
         } else {
-          currentPageText += (currentPageText ? '\n' : '') + line;
+          currentPageText += (currentPageText ? "\n" : "") + line;
         }
       }
     }
-    
+
     if (currentPageText.trim()) {
       computedPages.push(currentPageText.trim());
     }
-    
+
     if (computedPages.length === 0) {
-      computedPages.push('No content in this segment.');
+      computedPages.push("No content in this segment.");
     }
-    
+
     return computedPages;
   }, [currentChapter]);
 
@@ -133,12 +176,20 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
 
   // Handle saving stats on exiting reader
   const handleExit = () => {
-    const sessionSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000) + accumulatedTimeRef.current;
-    
+    const sessionSeconds =
+      Math.floor((Date.now() - startTimeRef.current) / 1000) +
+      accumulatedTimeRef.current;
+
     // Compute total progress accurately
     const totalChapters = chapters.length;
-    const progressPercent = Math.min(Math.floor(((safeIndex + 1) / totalChapters) * 100), 100);
-    const approxPage = Math.min(Math.floor((progressPercent / 100) * book.totalPages), book.totalPages);
+    const progressPercent = Math.min(
+      Math.floor(((safeIndex + 1) / totalChapters) * 100),
+      100,
+    );
+    const approxPage = Math.min(
+      Math.floor((progressPercent / 100) * book.totalPages),
+      book.totalPages,
+    );
 
     onBack(sessionSeconds, progressPercent, approxPage);
   };
@@ -148,11 +199,11 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
     // If double page mode (screen size >= md), flip by 2 pages
     const increment = window.innerWidth >= 768 ? 2 : 1;
     if (currentPageInChapter + increment < chapterPages.length) {
-      setCurrentPageInChapter(prev => prev + increment);
+      setCurrentPageInChapter((prev) => prev + increment);
     } else {
       // Go to next chapter
       if (safeIndex < chapters.length - 1) {
-        setCurrentChapterIndex(prev => prev + 1);
+        setCurrentChapterIndex((prev) => prev + 1);
         setCurrentPageInChapter(0);
       }
     }
@@ -162,11 +213,11 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
   const prevPage = () => {
     const decrement = window.innerWidth >= 768 ? 2 : 1;
     if (currentPageInChapter - decrement >= 0) {
-      setCurrentPageInChapter(prev => prev - decrement);
+      setCurrentPageInChapter((prev) => prev - decrement);
     } else {
       // Go to previous chapter (end page)
       if (safeIndex > 0) {
-        setCurrentChapterIndex(prev => prev - 1);
+        setCurrentChapterIndex((prev) => prev - 1);
         // We will resolve the page count of previous chapter in effect or keep it 0
         setCurrentPageInChapter(0);
       }
@@ -175,60 +226,89 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
 
   // Add bookmark
   const handleCreateBookmark = () => {
-    const textSnippet = (chapterPages[currentPageInChapter] || '').substring(0, 80) + '...';
+    const textSnippet =
+      (chapterPages[currentPageInChapter] || "").substring(0, 80) + "...";
     onAddBookmark(
       safeIndex,
       `${currentChapter.title} (p.${currentPageInChapter + 1})`,
-      bookmarkNote || 'Manual bookmark',
-      textSnippet
+      bookmarkNote || "Manual bookmark",
+      textSnippet,
     );
-    setBookmarkNote('');
+    setBookmarkNote("");
     setShowBookmarks(true);
   };
 
   // Theme-specific styles
-  const themeClasses: Record<ReaderTheme, { bg: string; text: string; border: string; font: string; cardBg: string }> = {
+  const themeClasses: Record<
+    ReaderTheme,
+    { bg: string; text: string; border: string; font: string; cardBg: string }
+  > = {
     parchment: {
-      bg: 'bg-[#ede5d3]',
-      cardBg: 'bg-[#fbf7ee]',
-      text: 'text-black',
-      border: 'border-[#dfd7bf]',
-      font: 'font-serif'
+      bg: "bg-[#ede5d3]",
+      cardBg: "bg-[#fbf7ee]",
+      text: "text-black",
+      border: "border-[#dfd7bf]",
+      font: "font-serif",
     },
     dark: {
-      bg: 'bg-[#090808]',
-      cardBg: 'bg-[#121010]',
-      text: 'text-[#e6e1da]',
-      border: 'border-[#2c241d]',
-      font: 'font-sans'
+      bg: "bg-[#090808]",
+      cardBg: "bg-[#121010]",
+      text: "text-[#e6e1da]",
+      border: "border-[#2c241d]",
+      font: "font-sans",
     },
     sepia: {
-      bg: 'bg-[#ebdcb9]',
-      cardBg: 'bg-[#f5eacf]',
-      text: 'text-black',
-      border: 'border-[#e0d2b4]',
-      font: 'font-serif'
+      bg: "bg-[#ebdcb9]",
+      cardBg: "bg-[#f5eacf]",
+      text: "text-black",
+      border: "border-[#e0d2b4]",
+      font: "font-serif",
     },
     light: {
-      bg: 'bg-[#f0ede6]',
-      cardBg: 'bg-[#faf9f6]',
-      text: 'text-black',
-      border: 'border-[#eae8e2]',
-      font: 'font-sans'
-    }
+      bg: "bg-[#f0ede6]",
+      cardBg: "bg-[#faf9f6]",
+      text: "text-black",
+      border: "border-[#eae8e2]",
+      font: "font-sans",
+    },
   };
 
   const currentTheme = themeClasses[theme];
 
   // Derive Left & Right text for Double Spread
-  const leftPageText = chapterPages[currentPageInChapter] || '';
-  const rightPageText = chapterPages[currentPageInChapter + 1] || '';
+  const leftPageText = chapterPages[currentPageInChapter] || "";
+  const rightPageText = chapterPages[currentPageInChapter + 1] || "";
 
+  // ── EPUB/PDF: 远程文件，用简单可靠的阅读器 ──
+  if (book.fileType === "epub" && book.fileUrl) {
+    return (
+      <EpubInlineReader
+        fileUrl={book.fileUrl}
+        title={book.title}
+        onBack={handleExit}
+      />
+    );
+  }
+
+  if (book.fileType === "pdf" && book.fileUrl) {
+    return (
+      <PdfCanvasReader
+        fileUrl={book.fileUrl}
+        title={book.title}
+        onBack={handleExit}
+      />
+    );
+  }
+
+  // ── TXT: 现有章节阅读器 ──
   return (
-    <div className={`fixed inset-0 z-50 flex flex-col ${currentTheme.bg} transition-colors duration-300 select-none`}>
-      
+    <div
+      className={`fixed inset-0 z-50 flex flex-col ${currentTheme.bg} transition-colors duration-300 select-none`}
+    >
       {/* Top Bar Navigation */}
-      <div className={`h-14 px-4 border-b ${currentTheme.border} bg-[#14110e]/10 backdrop-blur-md flex items-center justify-between`}>
+      <div
+        className={`h-14 px-4 border-b ${currentTheme.border} bg-[#14110e]/10 backdrop-blur-md flex items-center justify-between`}
+      >
         <div className="flex items-center gap-3">
           <button
             onClick={handleExit}
@@ -237,10 +317,14 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <span className={`text-[9px] font-mono uppercase tracking-widest ${currentTheme.text} opacity-60`}>
+            <span
+              className={`text-[9px] font-mono uppercase tracking-widest ${currentTheme.text} opacity-60`}
+            >
               Voyager Reading Desk
             </span>
-            <h1 className={`text-xs md:text-sm font-bold text-serif truncate max-w-[150px] md:max-w-md ${currentTheme.text}`}>
+            <h1
+              className={`text-xs md:text-sm font-bold text-serif truncate max-w-[150px] md:max-w-md ${currentTheme.text}`}
+            >
               {book.title}
             </h1>
           </div>
@@ -250,19 +334,25 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
         <div className="flex items-center gap-2">
           {/* Bookmark Drawer Button */}
           <button
-            onClick={() => { setShowBookmarks(!showBookmarks); setShowSettings(false); }}
+            onClick={() => {
+              setShowBookmarks(!showBookmarks);
+              setShowSettings(false);
+            }}
             className={`p-2 rounded-lg hover:bg-black/5 relative transition-all ${currentTheme.text}`}
             title="Bookmarks"
           >
             <BookmarkIcon className="w-4 h-4" />
-            {bookmarks.filter(b => b.bookId === book.id).length > 0 && (
+            {bookmarks.filter((b) => b.bookId === book.id).length > 0 && (
               <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#dcae1d] rounded-full animate-pulse" />
             )}
           </button>
 
           {/* Typography Settings Button */}
           <button
-            onClick={() => { setShowSettings(!showSettings); setShowBookmarks(false); }}
+            onClick={() => {
+              setShowSettings(!showSettings);
+              setShowBookmarks(false);
+            }}
             className={`p-2 rounded-lg hover:bg-black/5 transition-all ${currentTheme.text}`}
             title="Appearance Settings"
           >
@@ -273,7 +363,6 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
 
       {/* Main Content Pane */}
       <div className="flex-1 flex overflow-hidden relative">
-        
         {/* Left Drawer: Bookmarks list */}
         <AnimatePresence>
           {showBookmarks && (
@@ -284,17 +373,24 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
               className={`absolute left-0 top-0 bottom-0 w-80 border-r ${currentTheme.border} ${currentTheme.cardBg} z-20 flex flex-col p-4 shadow-2xl`}
             >
               <div className="flex items-center justify-between pb-3 border-b border-black/5 mb-4">
-                <h3 className={`text-xs font-bold font-mono uppercase tracking-wider ${currentTheme.text}`}>
+                <h3
+                  className={`text-xs font-bold font-mono uppercase tracking-wider ${currentTheme.text}`}
+                >
                   Bookmarked Pages
                 </h3>
-                <button onClick={() => setShowBookmarks(false)} className={`text-xs hover:underline ${currentTheme.text}`}>
+                <button
+                  onClick={() => setShowBookmarks(false)}
+                  className={`text-xs hover:underline ${currentTheme.text}`}
+                >
                   Close
                 </button>
               </div>
 
               {/* Bookmark Creator */}
               <div className="p-3 bg-black/5 rounded-xl mb-4">
-                <label className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-75`}>
+                <label
+                  className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-75`}
+                >
                   Add note for this page
                 </label>
                 <textarea
@@ -313,20 +409,24 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
 
               {/* Saved Bookmarks List */}
               <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                {bookmarks.filter(b => b.bookId === book.id).length === 0 ? (
-                  <div className={`text-xs italic text-center py-12 ${currentTheme.text} opacity-50`}>
+                {bookmarks.filter((b) => b.bookId === book.id).length === 0 ? (
+                  <div
+                    className={`text-xs italic text-center py-12 ${currentTheme.text} opacity-50`}
+                  >
                     No bookmarks saved on this desk.
                   </div>
                 ) : (
                   bookmarks
-                    .filter(b => b.bookId === book.id)
-                    .map(b => (
+                    .filter((b) => b.bookId === book.id)
+                    .map((b) => (
                       <div
                         key={b.id}
                         className="p-3 bg-white/30 border border-black/5 rounded-xl relative group"
                       >
                         <div className="flex justify-between items-start gap-2">
-                          <span className={`text-[9px] font-bold font-mono ${currentTheme.text} truncate max-w-[150px]`}>
+                          <span
+                            className={`text-[9px] font-bold font-mono ${currentTheme.text} truncate max-w-[150px]`}
+                          >
                             {b.chapterTitle}
                           </span>
                           <button
@@ -336,7 +436,9 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
                             Delete
                           </button>
                         </div>
-                        <p className={`text-xs mt-1 leading-relaxed font-medium ${currentTheme.text}`}>
+                        <p
+                          className={`text-xs mt-1 leading-relaxed font-medium ${currentTheme.text}`}
+                        >
                           "{b.note}"
                         </p>
                         <button
@@ -367,22 +469,39 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
               className={`absolute right-4 top-4 w-72 border border-black/10 rounded-2xl p-4 shadow-2xl ${currentTheme.cardBg} z-30 space-y-4`}
             >
               <div className="flex justify-between items-center pb-2 border-b border-black/5">
-                <span className={`text-xs font-bold font-mono uppercase ${currentTheme.text}`}>Appearance</span>
-                <button onClick={() => setShowSettings(false)} className={`text-xs ${currentTheme.text} hover:underline`}>Done</button>
+                <span
+                  className={`text-xs font-bold font-mono uppercase ${currentTheme.text}`}
+                >
+                  Appearance
+                </span>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className={`text-xs ${currentTheme.text} hover:underline`}
+                >
+                  Done
+                </button>
               </div>
 
               {/* Font Size Selector */}
               <div className="space-y-1.5">
-                <label className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-75`}>Font Size: {fontSize}px</label>
+                <label
+                  className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-75`}
+                >
+                  Font Size: {fontSize}px
+                </label>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setFontSize(prev => Math.max(prev - 1, 12))}
+                    onClick={() =>
+                      setFontSize((prev) => Math.max(prev - 1, 12))
+                    }
                     className={`flex-1 py-1 bg-black/5 rounded-lg text-xs font-semibold ${currentTheme.text}`}
                   >
                     A-
                   </button>
                   <button
-                    onClick={() => setFontSize(prev => Math.min(prev + 1, 24))}
+                    onClick={() =>
+                      setFontSize((prev) => Math.min(prev + 1, 24))
+                    }
                     className={`flex-1 py-1 bg-black/5 rounded-lg text-xs font-semibold ${currentTheme.text}`}
                   >
                     A+
@@ -392,31 +511,35 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
 
               {/* Theme Selector */}
               <div className="space-y-1.5">
-                <label className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-75`}>Theme Background</label>
+                <label
+                  className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-75`}
+                >
+                  Theme Background
+                </label>
                 <div className="grid grid-cols-4 gap-2">
                   <button
-                    onClick={() => setTheme('parchment')}
+                    onClick={() => setTheme("parchment")}
                     className="h-10 bg-[#f4efe2] border border-[#dfd7bf] rounded-lg flex items-center justify-center text-[#2b1f15]"
                     title="Parchment"
                   >
                     <Coffee className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => setTheme('sepia')}
+                    onClick={() => setTheme("sepia")}
                     className="h-10 bg-[#f4ebd0] border border-[#e0d2b4] rounded-lg flex items-center justify-center text-[#5c4033]"
                     title="Sepia"
                   >
                     <Coffee className="w-4 h-4 text-amber-800" />
                   </button>
                   <button
-                    onClick={() => setTheme('dark')}
+                    onClick={() => setTheme("dark")}
                     className="h-10 bg-[#0f0d0c] border border-[#26211d] rounded-lg flex items-center justify-center text-[#e6e1da]"
                     title="Classic Dark"
                   >
                     <Moon className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => setTheme('light')}
+                    onClick={() => setTheme("light")}
                     className="h-10 bg-[#faf9f6] border border-[#eae8e2] rounded-lg flex items-center justify-center text-[#1a1a1a]"
                     title="Clean Light"
                   >
@@ -430,20 +553,23 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
 
         {/* DOUBLE SPREAD BOOK CANVAS */}
         <div className="flex-1 flex flex-col justify-between py-6 px-4 md:px-12 select-text">
-          
           {/* Chapter Subheader */}
           <div className="text-center pb-2 border-b border-black/5 max-w-4xl mx-auto w-full flex justify-between items-center">
-            <span className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-60`}>
-              Chapter {safeIndex + 1} / {chapters.length}: {currentChapter.title}
+            <span
+              className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-60`}
+            >
+              Chapter {safeIndex + 1} / {chapters.length}:{" "}
+              {currentChapter.title}
             </span>
-            <span className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-60`}>
+            <span
+              className={`text-[10px] font-mono uppercase tracking-wider ${currentTheme.text} opacity-60`}
+            >
               {book.fileType.toUpperCase()} READER
             </span>
           </div>
 
           {/* Book double page spread layout */}
           <div className="flex-1 max-w-5xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-0.5 bg-black/5 rounded-2xl overflow-hidden shadow-2xl relative my-4 border border-black/10">
-            
             {/* 3D Spine Binding Overlay in center */}
             <div className="absolute top-0 bottom-0 left-1/2 w-[30px] -translate-x-1/2 bg-gradient-to-r from-black/25 via-black/45 to-black/25 z-10 pointer-events-none hidden md:block" />
             <div className="absolute top-0 bottom-0 left-1/2 w-[2px] -translate-x-1/2 bg-black/40 z-10 pointer-events-none hidden md:block" />
@@ -462,17 +588,24 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
                   className={`${currentTheme.font} ${currentTheme.text} leading-relaxed text-justify space-y-3`}
                   style={{ fontSize: `${fontSize}px` }}
                 >
-                  {leftPageText.split('\n').map((para, i) => (
-                    <p key={i} className="leading-relaxed tracking-wide min-h-[1em]">
+                  {leftPageText.split("\n").map((para, i) => (
+                    <p
+                      key={i}
+                      className="leading-relaxed tracking-wide min-h-[1em]"
+                    >
                       {para.trim()}
                     </p>
                   ))}
                 </div>
-                
+
                 {/* Page Number Footer Left */}
-                <div className={`mt-6 border-t border-black/5 pt-3 flex justify-between items-center text-[10px] font-mono ${currentTheme.text} opacity-50`}>
+                <div
+                  className={`mt-6 border-t border-black/5 pt-3 flex justify-between items-center text-[10px] font-mono ${currentTheme.text} opacity-50`}
+                >
                   <span>{book.title}</span>
-                  <span>Page {currentPageInChapter + 1} of {chapterPages.length}</span>
+                  <span>
+                    Page {currentPageInChapter + 1} of {chapterPages.length}
+                  </span>
                 </div>
               </motion.div>
             </AnimatePresence>
@@ -492,8 +625,11 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
                     className={`${currentTheme.font} ${currentTheme.text} leading-relaxed text-justify space-y-3`}
                     style={{ fontSize: `${fontSize}px` }}
                   >
-                    {rightPageText.split('\n').map((para, i) => (
-                      <p key={i} className="leading-relaxed tracking-wide min-h-[1em]">
+                    {rightPageText.split("\n").map((para, i) => (
+                      <p
+                        key={i}
+                        className="leading-relaxed tracking-wide min-h-[1em]"
+                      >
                         {para.trim()}
                       </p>
                     ))}
@@ -501,11 +637,13 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-40">
                     <BookOpen className="w-8 h-8 mb-2" />
-                    <p className="text-xs italic font-serif">End of Chapter {safeIndex + 1}</p>
+                    <p className="text-xs italic font-serif">
+                      End of Chapter {safeIndex + 1}
+                    </p>
                     {safeIndex < chapters.length - 1 && (
                       <button
                         onClick={() => {
-                          setCurrentChapterIndex(prev => prev + 1);
+                          setCurrentChapterIndex((prev) => prev + 1);
                           setCurrentPageInChapter(0);
                         }}
                         className="mt-3 px-3 py-1 bg-black/5 hover:bg-black/10 rounded-lg text-xs font-semibold transition-all"
@@ -515,15 +653,18 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
                     )}
                   </div>
                 )}
-                
+
                 {/* Page Number Footer Right */}
-                <div className={`mt-6 border-t border-black/5 pt-3 flex justify-between items-center text-[10px] font-mono ${currentTheme.text} opacity-50`}>
+                <div
+                  className={`mt-6 border-t border-black/5 pt-3 flex justify-between items-center text-[10px] font-mono ${currentTheme.text} opacity-50`}
+                >
                   <span>Chapter {safeIndex + 1}</span>
-                  <span>Page {currentPageInChapter + 2} of {chapterPages.length}</span>
+                  <span>
+                    Page {currentPageInChapter + 2} of {chapterPages.length}
+                  </span>
                 </div>
               </motion.div>
             </AnimatePresence>
-
           </div>
 
           {/* Book Reader Control Row (Flipping controls) */}
@@ -532,31 +673,260 @@ export default function BookReader({ book, bookmarks, onBack, onAddBookmark, onD
               onClick={prevPage}
               disabled={safeIndex === 0 && currentPageInChapter === 0}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border ${currentTheme.border} text-xs font-medium tracking-wide bg-white/40 backdrop-blur-md transition-all ${
-                safeIndex === 0 && currentPageInChapter === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-black/5'
+                safeIndex === 0 && currentPageInChapter === 0
+                  ? "opacity-30 cursor-not-allowed"
+                  : "hover:bg-black/5"
               } ${currentTheme.text}`}
             >
               <ChevronLeft className="w-4 h-4" /> Previous
             </button>
 
-            <span className={`text-[10px] font-mono uppercase tracking-widest ${currentTheme.text} opacity-70`}>
-              Chapter {safeIndex + 1} / {chapters.length} • {Math.min(Math.floor(((currentPageInChapter + 1) / chapterPages.length) * 100), 100)}% Mapped
+            <span
+              className={`text-[10px] font-mono uppercase tracking-widest ${currentTheme.text} opacity-70`}
+            >
+              Chapter {safeIndex + 1} / {chapters.length} •{" "}
+              {Math.min(
+                Math.floor(
+                  ((currentPageInChapter + 1) / chapterPages.length) * 100,
+                ),
+                100,
+              )}
+              % Mapped
             </span>
 
             <button
               onClick={nextPage}
-              disabled={safeIndex === chapters.length - 1 && currentPageInChapter >= chapterPages.length - 1}
+              disabled={
+                safeIndex === chapters.length - 1 &&
+                currentPageInChapter >= chapterPages.length - 1
+              }
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border ${currentTheme.border} text-xs font-medium tracking-wide bg-white/40 backdrop-blur-md transition-all ${
-                safeIndex === chapters.length - 1 && currentPageInChapter >= chapterPages.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-black/5'
+                safeIndex === chapters.length - 1 &&
+                currentPageInChapter >= chapterPages.length - 1
+                  ? "opacity-30 cursor-not-allowed"
+                  : "hover:bg-black/5"
               } ${currentTheme.text}`}
             >
               Next <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-
         </div>
-
       </div>
+    </div>
+  );
+}
 
+// ══════════════════════════════════════════════════════
+// EPUB / PDF 阅读器
+// ══════════════════════════════════════════════════════
+
+interface EpubPdfReaderProps {
+  fileUrl: string;
+  fileType: "epub" | "pdf";
+  title: string;
+  onBack: () => void;
+}
+
+function EpubInlineReader({
+  fileUrl,
+  title,
+  onBack,
+}: {
+  fileUrl: string;
+  title: string;
+  onBack: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [error, setError] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [progress, setProgress] = useState<string>("Downloading...");
+
+  useEffect(() => {
+    let rendition: any = null;
+    let book: any = null;
+    let cancelled = false;
+
+    const loadEpub = async () => {
+      try {
+        setError("");
+        setIsLoading(true);
+
+        // 通过代理下载 ArrayBuffer（绕过 302 相对路径问题）
+        setProgress("Downloading...");
+        const proxyUrl = `/api/oss/proxy?url=${encodeURIComponent(fileUrl)}`;
+        const resp = await fetch(proxyUrl);
+        if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
+        const buffer = await resp.arrayBuffer();
+
+        if (cancelled || !containerRef.current) return;
+
+        setProgress("Parsing...");
+        book = ePub(buffer);
+        await book.ready;
+
+        if (cancelled || !containerRef.current) { book.destroy(); return; }
+
+        rendition = book.renderTo(containerRef.current, {
+          width: "100%",
+          height: "100%",
+          flow: "scrolled",
+        });
+
+        await rendition.display();
+        setProgress("Ready");
+      } catch (err: any) {
+        console.error("EPUB load failed:", err);
+        setError(`Failed: ${err.message}`);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    loadEpub();
+
+    return () => {
+      cancelled = true;
+      if (rendition?.destroy) rendition.destroy();
+      if (book?.destroy) book.destroy();
+    };
+  }, [fileUrl]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0e0c0a] select-none">
+      <div className="h-12 px-4 border-b border-[#2c241d] bg-[#14110e]/80 backdrop-blur-md flex items-center justify-between shrink-0">
+        <button onClick={onBack} className="p-2 rounded-lg hover:bg-[#2c241d] text-[#9c9284] hover:text-[#f2efe9] transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div className="text-center">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-[#dcae1d]">EPUB Reader</span>
+          <h1 className="text-xs font-bold text-serif text-[#f2efe9] truncate max-w-[200px] mx-auto">{title}</h1>
+        </div>
+        <span className="text-[10px] font-mono text-[#9c9284]">{progress}</span>
+      </div>
+      <div className="flex-1 bg-[#181414] relative overflow-hidden">
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center text-[#dcae1d] text-sm">{progress}</div>
+        )}
+        {error ? (
+          <div className="h-full flex flex-col items-center justify-center gap-4 text-[#f2efe9] px-6 text-center">
+            <BookOpen className="w-16 h-16 text-[#dcae1d]" />
+            <p>{error}</p>
+            <a href={fileUrl} target="_blank" rel="noreferrer" className="px-6 py-2.5 bg-[#dcae1d] hover:bg-[#bda018] text-[#12100e] text-xs font-bold rounded-xl transition-all shadow-lg mt-4">
+              Download EPUB
+            </a>
+          </div>
+        ) : (
+          <div ref={containerRef} className="w-full h-full" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PdfCanvasReader({
+  fileUrl,
+  title,
+  onBack,
+}: {
+  fileUrl: string;
+  title: string;
+  onBack: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [pageNum, setPageNum] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [scale, setScale] = useState(1.2);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const renderTaskRef = useRef<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadPdf = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const proxyUrl = `/api/oss/proxy?url=${encodeURIComponent(fileUrl)}`;
+        const resp = await fetch(proxyUrl);
+        if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
+        const buffer = await resp.arrayBuffer();
+        if (cancelled) return;
+
+        const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+        if (cancelled) { pdf.cleanup(); return; }
+        setPdfDoc(pdf);
+        setTotalPages(pdf.numPages);
+        setPageNum(1);
+        setLoading(false);
+      } catch (err: any) {
+        console.error("PDF load failed:", err);
+        setError(`Failed: ${err.message}`);
+        setLoading(false);
+      }
+    };
+    loadPdf();
+    return () => { cancelled = true; };
+  }, [fileUrl]);
+
+  useEffect(() => {
+    if (!pdfDoc || !canvasRef.current) return;
+    if (renderTaskRef.current) renderTaskRef.current.cancel();
+
+    const render = async () => {
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const canvas = canvasRef.current!;
+        const viewport = page.getViewport({ scale });
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = viewport.width * dpr;
+        canvas.height = viewport.height * dpr;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        const ctx = canvas.getContext("2d")!;
+        ctx.scale(dpr, dpr);
+        renderTaskRef.current = page.render({ canvasContext: ctx, viewport });
+        await renderTaskRef.current.promise;
+      } catch (err: any) {
+        if (err.name !== "RenderingCancelledException") console.error(err);
+      }
+    };
+    render();
+  }, [pdfDoc, pageNum, scale]);
+
+  const goPrev = () => setPageNum((p) => Math.max(1, p - 1));
+  const goNext = () => setPageNum((p) => Math.min(totalPages, p + 1));
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0e0c0a] select-none">
+      <div className="h-12 px-4 border-b border-[#2c241d] bg-[#14110e]/80 backdrop-blur-md flex items-center justify-between shrink-0">
+        <button onClick={onBack} className="p-2 rounded-lg hover:bg-[#2c241d] text-[#9c9284] hover:text-[#f2efe9] transition-colors">
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div className="text-center">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-[#dcae1d]">PDF Reader</span>
+          <h1 className="text-xs font-bold text-serif text-[#f2efe9] truncate max-w-[200px] mx-auto">{title}</h1>
+        </div>
+        <div className="flex gap-1">
+          <button onClick={() => setScale((s) => Math.max(0.5, s - 0.2))} className="p-1.5 text-[#9c9284] hover:text-[#f2efe9]"><ZoomOut className="w-4 h-4" /></button>
+          <button onClick={() => setScale((s) => Math.min(3, s + 0.2))} className="p-1.5 text-[#9c9284] hover:text-[#f2efe9]"><ZoomIn className="w-4 h-4" /></button>
+        </div>
+      </div>
+      <div ref={containerRef} className="flex-1 overflow-auto bg-[#2d2a26] flex justify-center py-4">
+        {loading && <div className="text-[#dcae1d] text-sm self-center">Loading PDF...</div>}
+        {error && <div className="text-red-400 text-sm self-center">{error}</div>}
+        {!loading && !error && <canvas ref={canvasRef} className="shadow-2xl" />}
+      </div>
+      <div className="h-12 px-6 border-t border-[#2c241d] bg-[#14110e]/80 backdrop-blur-md flex items-center justify-center gap-6 shrink-0">
+        <button onClick={goPrev} disabled={pageNum <= 1} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors disabled:opacity-30">
+          <ChevronLeft className="w-4 h-4" /> Previous
+        </button>
+        <span className="text-[10px] font-mono text-[#9c9284]">{pageNum} / {totalPages}</span>
+        <button onClick={goNext} disabled={pageNum >= totalPages} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors disabled:opacity-30">
+          Next <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }

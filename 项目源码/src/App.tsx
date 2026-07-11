@@ -169,7 +169,7 @@ export default function App() {
   };
 
   // Handle Book Import with smart chapter splitting
-  const handleImportBook = (bookData: {
+  const handleImportBook = async (bookData: {
     title: string;
     author: string;
     country: string;
@@ -178,6 +178,8 @@ export default function App() {
     content?: string;
     cover?: string;
     fileType: 'txt' | 'epub' | 'pdf';
+    filePath?: string;
+    fileUrl?: string;
   }) => {
     const rawContent = bookData.content || 'Start reading and enjoy the book voyage!';
     
@@ -253,17 +255,41 @@ export default function App() {
       country: bookData.country,
       category: bookData.category || 'Literature',
       visibility: 'public',
-      totalPages: chapters.length * 10, // 10 pages per chapter segment
+      totalPages: chapters.length * 10,
       currentPage: 0,
       progress: 0,
       readTime: 0,
       fileType: bookData.fileType,
-      cover: bookData.cover || 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=300&auto=format&fit=crop', // default cozy book texture
+      filePath: bookData.filePath,
+      fileUrl: bookData.fileUrl,
+      cover: bookData.cover || 'https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=300&auto=format&fit=crop',
       content: rawContent,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       chapters: chapters
     };
+
+    // 如果有 token，尝试调用 API 保存
+    const token = localStorage.getItem('bv_token');
+    if (token) {
+      try {
+        await api.books.create({
+          title: newBook.title,
+          author: newBook.author,
+          country: newBook.country,
+          category: newBook.category,
+          visibility: 1,
+          fileType: newBook.fileType,
+          filePath: newBook.filePath,
+          cover: newBook.cover,
+          summary: bookData.summary || '',
+          content: newBook.content,
+          chapters: newBook.chapters,
+        });
+      } catch (err) {
+        console.warn('API book creation failed, using localStorage fallback');
+      }
+    }
 
     const updated = [newBook, ...books];
     saveBooksState(updated);
@@ -414,7 +440,32 @@ export default function App() {
     }
   };
 
-  const handleGuestLogin = () => {
+  const handleGuestLogin = async () => {
+    // 尝试以默认账号登录获取 JWT token（支持 OSS 上传等功能）
+    try {
+      const res = await api.auth.login('voyager@bookvoyage.com', 'guestpass123');
+      if (res.token && res.user) {
+        localStorage.setItem('bv_token', res.token);
+        setCurrentUser(res.user);
+        setIsLoggedOut(false);
+        setAuthError('');
+        // 加载数据
+        try {
+          const [booksRes, reviewsRes, bookmarksRes] = await Promise.all([
+            api.books.list({ size: 100 }),
+            api.reviews.list({ size: 100 }),
+            api.bookmarks.list(),
+          ]);
+          if (booksRes?.data?.list) setBooks(booksRes.data.list);
+          if (reviewsRes?.data?.list) setReviews(reviewsRes.data.list);
+          if (bookmarksRes?.data) setBookmarks(bookmarksRes.data);
+        } catch {}
+        return;
+      }
+    } catch {
+      // API 不可用时回退到纯本地模式
+    }
+    // API 登录失败 → 本地回退（无 token，OSS 上传不可用）
     const guestUser = {
       username: '书旅行者 (Voyager)',
       email: 'voyager@bookvoyage.com',

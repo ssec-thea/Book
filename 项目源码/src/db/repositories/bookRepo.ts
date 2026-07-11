@@ -58,6 +58,7 @@ export async function createBook(data: {
   country?: string;
   cover?: string;
   filePath?: string;
+  fileUrl?: string;
   fileType?: string;
   fileSize?: number;
   category?: string;
@@ -69,10 +70,10 @@ export async function createBook(data: {
   const pool = getPool();
   const chaptersJson = data.chapters ? JSON.stringify(data.chapters) : null;
 
-  const [result] = await pool.execute<ResultSetHeader>(
-    `INSERT INTO books (user_id, title, author, country, cover, file_path, file_type, file_size,
+  const [result] = await pool.query<ResultSetHeader>(
+    `INSERT INTO books (user_id, title, author, country, cover, file_path, file_url, file_type, file_size,
       category, visibility, summary, content, chapters, total_pages)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.userId,
       data.title,
@@ -80,6 +81,7 @@ export async function createBook(data: {
       data.country || 'Unknown',
       data.cover || '',
       data.filePath || '',
+      data.fileUrl || '',
       data.fileType || 'txt',
       data.fileSize || 0,
       data.category || 'Literature',
@@ -91,7 +93,7 @@ export async function createBook(data: {
     ]
   );
 
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM books WHERE id = ?', [result.insertId]
   );
   return formatBook(rows[0]);
@@ -128,12 +130,12 @@ export async function findBooks(filters: BookFilters): Promise<PaginatedResult<B
   const size = filters.size || 20;
   const offset = (page - 1) * size;
 
-  const [countRows] = await pool.execute<RowDataPacket[]>(
+  const [countRows] = await pool.query<RowDataPacket[]>(
     `SELECT COUNT(*) as total FROM books b ${where}`, values
   );
   const total = (countRows[0] as any).total;
 
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT b.*, u.username as owner_name FROM books b
      LEFT JOIN users u ON b.user_id = u.id
      ${where}
@@ -155,7 +157,7 @@ export async function findBooks(filters: BookFilters): Promise<PaginatedResult<B
  */
 export async function findBookById(id: number): Promise<BookRow | null> {
   const pool = getPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM books WHERE id = ? LIMIT 1', [id]
   );
   return rows.length > 0 ? formatBook(rows[0]) : null;
@@ -178,6 +180,7 @@ export async function updateBook(id: number, fields: Record<string, any>): Promi
 
   const allowedFields = [
     'title', 'author', 'country', 'cover', 'category', 'visibility',
+    'file_path', 'file_url',
     'current_page', 'progress', 'read_time', 'last_read_time',
     'summary', 'content', 'chapters', 'total_pages'
   ];
@@ -197,7 +200,7 @@ export async function updateBook(id: number, fields: Record<string, any>): Promi
   if (updates.length === 0) return false;
   values.push(id);
 
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     `UPDATE books SET ${updates.join(', ')} WHERE id = ?`, values
   );
   return result.affectedRows > 0;
@@ -226,7 +229,7 @@ export async function updateReadingProgress(
  */
 export async function deleteBook(id: number): Promise<boolean> {
   const pool = getPool();
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     'DELETE FROM books WHERE id = ?', [id]
   );
   return result.affectedRows > 0;
@@ -237,7 +240,7 @@ export async function deleteBook(id: number): Promise<boolean> {
  */
 export async function getBooksByCountry(userId: number): Promise<any[]> {
   const pool = getPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT country, COUNT(*) as count,
      JSON_ARRAYAGG(JSON_OBJECT('id', id, 'title', title, 'author', author, 'cover', cover, 'category', category))
      as books_json

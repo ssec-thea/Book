@@ -43,7 +43,7 @@ export async function createUser(
   bio?: string
 ): Promise<PublicUser> {
   const pool = getPool();
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO users (username, email, password_hash, avatar, bio)
      VALUES (?, ?, ?, ?, ?)`,
     [username, email, passwordHash, avatar || '', bio || '']
@@ -63,7 +63,7 @@ export async function createUser(
  */
 export async function findByEmail(email: string): Promise<UserRow | null> {
   const pool = getPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM users WHERE email = ? LIMIT 1',
     [email]
   );
@@ -75,7 +75,7 @@ export async function findByEmail(email: string): Promise<UserRow | null> {
  */
 export async function findByUsername(username: string): Promise<UserRow | null> {
   const pool = getPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT * FROM users WHERE username = ? LIMIT 1',
     [username]
   );
@@ -87,7 +87,7 @@ export async function findByUsername(username: string): Promise<UserRow | null> 
  */
 export async function findById(id: number): Promise<PublicUser | null> {
   const pool = getPool();
-  const [rows] = await pool.execute<RowDataPacket[]>(
+  const [rows] = await pool.query<RowDataPacket[]>(
     'SELECT id, username, email, avatar, bio, created_at FROM users WHERE id = ? LIMIT 1',
     [id]
   );
@@ -122,7 +122,7 @@ export async function updateUser(
   if (updates.length === 0) return false;
 
   values.push(id);
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
     values
   );

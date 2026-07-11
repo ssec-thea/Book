@@ -23,13 +23,13 @@ export async function startSession(
   startPage: number = 0
 ): Promise<ReadingRecord> {
   const pool = getPool();
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     `INSERT INTO reading_records (user_id, book_id, start_time, start_page)
      VALUES (?, ?, NOW(), ?)`,
     [userId, bookId, startPage]
   );
 
-  const [rows] = await pool.execute<any[]>(
+  const [rows] = await pool.query<any[]>(
     'SELECT * FROM reading_records WHERE id = ?', [result.insertId]
   );
   return rows[0];
@@ -45,7 +45,7 @@ export async function endSession(
   progress: string
 ): Promise<boolean> {
   const pool = getPool();
-  const [result] = await pool.execute<ResultSetHeader>(
+  const [result] = await pool.query<ResultSetHeader>(
     `UPDATE reading_records SET end_time = NOW(), duration = ?, end_page = ?, progress = ?
      WHERE id = ?`,
     [duration, endPage, progress, id]
@@ -65,7 +65,7 @@ export async function saveProgress(
 ): Promise<void> {
   const pool = getPool();
   // 先尝试更新最近一条未结束的记录
-  const [recent] = await pool.execute<any[]>(
+  const [recent] = await pool.query<any[]>(
     `SELECT id FROM reading_records
      WHERE user_id = ? AND book_id = ? AND end_time IS NULL
      ORDER BY start_time DESC LIMIT 1`,
@@ -76,7 +76,7 @@ export async function saveProgress(
     await endSession(recent[0].id, duration, currentPage, progress);
   } else {
     // 创建新记录
-    const [result] = await pool.execute<ResultSetHeader>(
+    const [result] = await pool.query<ResultSetHeader>(
       `INSERT INTO reading_records (user_id, book_id, start_time, end_time, duration, start_page, end_page, progress)
        VALUES (?, ?, NOW(), NOW(), ?, ?, ?, ?)`,
       [userId, bookId, duration, 0, currentPage, progress]
@@ -89,7 +89,7 @@ export async function saveProgress(
  */
 export async function getRecords(userId: number, bookId: number): Promise<ReadingRecord[]> {
   const pool = getPool();
-  const [rows] = await pool.execute<any[]>(
+  const [rows] = await pool.query<any[]>(
     `SELECT * FROM reading_records
      WHERE user_id = ? AND book_id = ?
      ORDER BY start_time DESC LIMIT 20`,
@@ -103,7 +103,7 @@ export async function getRecords(userId: number, bookId: number): Promise<Readin
  */
 export async function getTotalReadTime(userId: number): Promise<number> {
   const pool = getPool();
-  const [rows] = await pool.execute<any[]>(
+  const [rows] = await pool.query<any[]>(
     'SELECT COALESCE(SUM(duration), 0) as total FROM reading_records WHERE user_id = ?',
     [userId]
   );
