@@ -61,7 +61,7 @@ export async function createReview(data: {
  * 查询书评列表
  */
 export async function findReviews(filters: ReviewFilters): Promise<{
-  list: ReviewRow[];
+  list: any[];
   total: number;
   page: number;
   size: number;
@@ -104,15 +104,30 @@ export async function findReviews(filters: ReviewFilters): Promise<{
   );
 
   const formatted = (rows as any[]).map((r: any) => ({
-    ...r, id: String(r?.id || ''), user_id: String(r?.user_id || ''), book_id: String(r?.book_id || ''),
+    id: String(r.id || ''),
+    userId: String(r.user_id || ''),
+    bookId: String(r.book_id || ''),
+    bookTitle: r.book_title,
+    bookAuthor: r.book_author,
+    username: r.username || '',
+    userAvatar: r.user_avatar || '',
+    title: r.title,
+    content: r.content,
+    score: r.score,
+    longitude: r.longitude,
+    latitude: r.latitude,
+    locationName: r.location_name || '',
+    visibility: r.visibility === 1 ? 'public' : 'private',
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
   }));
-  return { list: formatted as ReviewRow[], total, page, size };
+  return { list: formatted as any[], total, page, size };
 }
 
 /**
  * 获取公开书评（用于地图聚合）
  */
-export async function findPublicReviews(): Promise<ReviewRow[]> {
+export async function findPublicReviews(): Promise<any[]> {
   const pool = getPool();
   const [rows] = await pool.query<RowDataPacket[]>(
     `SELECT r.*, u.username, u.avatar as user_avatar
@@ -121,7 +136,22 @@ export async function findPublicReviews(): Promise<ReviewRow[]> {
      WHERE r.visibility = 1
      ORDER BY r.created_at DESC`
   );
-  return rows as ReviewRow[];
+  return (rows as any[]).map((r: any) => ({
+    id: String(r.id || ''),
+    userId: String(r.user_id || ''),
+    bookId: String(r.book_id || ''),
+    username: r.username || '',
+    userAvatar: r.user_avatar || '',
+    title: r.title,
+    content: r.content,
+    score: r.score,
+    longitude: r.longitude,
+    latitude: r.latitude,
+    locationName: r.location_name || '',
+    visibility: 'public',
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }));
 }
 
 /**

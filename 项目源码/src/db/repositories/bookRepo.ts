@@ -41,12 +41,30 @@ export interface PaginatedResult<T> {
   size: number;
 }
 
-function formatBook(row: any): BookRow {
+function formatBook(row: any): any {
   return {
-    ...row,
-    id: String(row.id), // 统一为 string 兼容 localStorage
-    user_id: String(row.user_id),
-    chapters: typeof row.chapters === 'string' ? JSON.parse(row.chapters) : row.chapters,
+    id: String(row.id),
+    userId: String(row.user_id || ''),
+    title: row.title,
+    author: row.author,
+    country: row.country,
+    cover: row.cover,
+    filePath: row.file_path || '',
+    fileUrl: row.file_url || '',
+    fileType: row.file_type,
+    fileSize: row.file_size || 0,
+    category: row.category,
+    visibility: row.visibility === 1 ? 'public' : 'private',
+    totalPages: row.total_pages || 0,
+    currentPage: row.current_page || 0,
+    progress: row.progress || 0,
+    readTime: row.read_time || 0,
+    lastReadTime: row.last_read_time,
+    summary: row.summary || '',
+    content: row.content || '',
+    chapters: typeof row.chapters === 'string' ? JSON.parse(row.chapters) : (row.chapters || []),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 

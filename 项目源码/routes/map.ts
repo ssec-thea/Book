@@ -92,7 +92,7 @@ router.get('/public-reviews', async (req: Request, res: Response) => {
         score: r.score,
         title: r.title,
         content: r.content?.substring(0, 200),
-        created_at: r.created_at,
+        created_at: r.createdAt,
       });
     }
 
@@ -129,7 +129,7 @@ router.get('/same-book/:bookId', authMiddleware, async (req: Request, res: Respo
         username: r.username,
         score: r.score,
         content: r.content?.substring(0, 200),
-        created_at: r.created_at,
+        created_at: r.createdAt,
       });
     }
 

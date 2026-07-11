@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Book, Review } from '../types';
 import { BookOpen, Star, MapPin, Search, Globe, ChevronRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import { api } from '../services/api';
 
 interface CommunitySquareProps {
   books: Book[];
@@ -12,10 +13,27 @@ interface CommunitySquareProps {
 export default function CommunitySquare({ books, reviews, onBookClick }: CommunitySquareProps) {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [publicBooks, setPublicBooks] = useState<Book[]>([]);
+  const [publicReviews, setPublicReviews] = useState<Review[]>([]);
 
-  // Filter public books and reviews
-  const publicBooks = books.filter(b => b.visibility === 'public');
-  const publicReviews = reviews.filter(r => r.visibility === 'public');
+  // 独立加载公开内容（不受当前用户限制）
+  useEffect(() => {
+    const loadPublic = async () => {
+      try {
+        const [bRes, rRes] = await Promise.all([
+          api.books.getPublic({ size: 100 }),
+          api.reviews.list({ visibility: 1, size: 100 }),
+        ]);
+        if (bRes?.data?.list) setPublicBooks(bRes.data.list);
+        if (rRes?.data?.list) setPublicReviews(rRes.data.list);
+      } catch {
+        // 回退：用 props 中的数据过滤
+        setPublicBooks(books.filter(b => b.visibility === 'public'));
+        setPublicReviews(reviews.filter(r => r.visibility === 'public'));
+      }
+    };
+    loadPublic();
+  }, [books, reviews]);
 
   const filteredBooks = publicBooks.filter(book => {
     const matchesSearch = book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
