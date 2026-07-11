@@ -103,7 +103,10 @@ export async function findReviews(filters: ReviewFilters): Promise<{
     [...values, size, offset]
   );
 
-  return { list: rows as ReviewRow[], total, page, size };
+  const formatted = (rows as any[]).map((r: any) => ({
+    ...r, id: String(r?.id || ''), user_id: String(r?.user_id || ''), book_id: String(r?.book_id || ''),
+  }));
+  return { list: formatted as ReviewRow[], total, page, size };
 }
 
 /**

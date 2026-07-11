@@ -826,23 +826,19 @@ function EpubInlineReader({
           <div ref={containerRef} className="w-full h-full overflow-auto" />
         )}
       </div>
-      {/* EPUB 翻页导航 */}
-      {!isLoading && !error && (
-        <>
-          <div className="h-12 px-6 border-t border-[#2c241d] bg-[#14110e]/80 backdrop-blur-md flex items-center justify-center gap-6 shrink-0">
-            <button onClick={() => renditionRef.current?.prev()} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors">
-              <ChevronLeft className="w-4 h-4" /> Previous
-            </button>
-            <button onClick={() => renditionRef.current?.next()} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors">
-              Next <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-          <style>{`
-            .epub-container { background: #f5f0e8 !important; }
-            .epub-view > iframe { background: #f5f0e8 !important; }
-          `}</style>
-        </>
-      )}
+      {/* EPUB 翻页导航 — 始终显示 */}
+      <div className="h-12 px-6 border-t border-[#2c241d] bg-[#14110e]/80 backdrop-blur-md flex items-center justify-center gap-6 shrink-0">
+        <button onClick={() => renditionRef.current?.prev()} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors">
+          <ChevronLeft className="w-4 h-4" /> Previous
+        </button>
+        <button onClick={() => renditionRef.current?.next()} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors">
+          Next <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+      <style>{`
+        .epub-container { background: #f5f0e8 !important; }
+        .epub-view > iframe { background: #f5f0e8 !important; }
+      `}</style>
     </div>
   );
 }
@@ -856,20 +852,20 @@ function PdfCanvasReader({
   title: string;
   onBack: () => void;
 }) {
-  const [pages, setPages] = useState<{ num: number; w: number; h: number }[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [pageNum, setPageNum] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const pagesRef = useRef<HTMLDivElement>(null);
-  const renderedRef = useRef<Set<number>>(new Set());
 
-  // 加载 PDF 文档
+  // 加载 PDF
   useEffect(() => {
     let cancelled = false;
-    renderedRef.current = new Set();
     const loadPdf = async () => {
       try {
         setLoading(true);
+        setError("");
         const proxyUrl = `/api/oss/proxy?url=${encodeURIComponent(fileUrl)}`;
         const resp = await fetch(proxyUrl);
         if (!resp.ok) throw new Error(`Download failed: ${resp.status}`);
@@ -878,13 +874,8 @@ function PdfCanvasReader({
         const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
         if (cancelled) { pdf.cleanup(); return; }
         setPdfDoc(pdf);
-        const pageInfos: { num: number; w: number; h: number }[] = [];
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const vp = page.getViewport({ scale: 1 });
-          pageInfos.push({ num: i, w: vp.width, h: vp.height });
-        }
-        setPages(pageInfos);
+        setTotalPages(pdf.numPages);
+        setPageNum(1);
         setLoading(false);
       } catch (err: any) {
         setError(`Failed: ${err.message}`);
@@ -895,37 +886,34 @@ function PdfCanvasReader({
     return () => { cancelled = true; };
   }, [fileUrl]);
 
-  // 懒加载渲染每一页
+  // 渲染当前页
   useEffect(() => {
-    if (!pdfDoc || pages.length === 0) return;
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(async (entry) => {
-        if (!entry.isIntersecting) return;
-        const pageNum = parseInt(entry.target.getAttribute('data-page') || '0');
-        if (!pageNum || renderedRef.current.has(pageNum)) return;
-        renderedRef.current.add(pageNum);
-        const canvas = (entry.target as HTMLDivElement).querySelector('canvas');
-        if (!canvas) return;
-        try {
-          const page = await pdfDoc.getPage(pageNum);
-          const vp = page.getViewport({ scale: 1.5 });
-          const dpr = window.devicePixelRatio || 1;
-          canvas.width = vp.width * dpr;
-          canvas.height = vp.height * dpr;
-          canvas.style.width = `${vp.width}px`;
-          canvas.style.height = `${vp.height}px`;
-          const ctx = canvas.getContext('2d')!;
-          ctx.scale(dpr, dpr);
-          await page.render({ canvasContext: ctx, viewport: vp }).promise;
-        } catch (e: any) {
-          if (e.name !== 'RenderingCancelledException') console.error(e);
-        }
-      });
-    }, { rootMargin: '200px' });
-    const pageEls = pagesRef.current?.querySelectorAll('.pdf-page');
-    pageEls?.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [pdfDoc, pages]);
+    if (!pdfDoc || !canvasRef.current) return;
+    let cancelled = false;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d')!;
+    // 清除旧画面
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const render = async () => {
+      try {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.5 });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        if (cancelled) return;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+      } catch (e: any) {
+        if (e.name !== 'RenderingCancelledException') console.error(e);
+      }
+    };
+    render();
+    return () => { cancelled = true; };
+  }, [pdfDoc, pageNum]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0e0c0a] select-none">
@@ -937,16 +925,21 @@ function PdfCanvasReader({
           <span className="text-[9px] font-mono uppercase tracking-widest text-[#dcae1d]">PDF Reader</span>
           <h1 className="text-xs font-bold text-serif text-[#f2efe9] truncate max-w-[200px] mx-auto">{title}</h1>
         </div>
-        <span className="text-[10px] font-mono text-[#9c9284]">{pages.length} pages</span>
+        <span className="text-[10px] font-mono text-[#9c9284]">{pageNum} / {totalPages}</span>
       </div>
-      <div ref={pagesRef} className="flex-1 overflow-auto bg-[#2d2a26] flex flex-col items-center gap-2 py-4">
-        {loading && <div className="text-[#dcae1d] text-sm self-center mt-8">Loading PDF...</div>}
-        {error && <div className="text-red-400 text-sm self-center mt-8">{error}</div>}
-        {!loading && !error && pages.map((p) => (
-          <div key={p.num} data-page={p.num} className="pdf-page bg-white shadow-2xl mb-4" style={{ width: p.w * 1.5, minHeight: p.h * 1.5 }}>
-            <canvas />
-          </div>
-        ))}
+      <div className="flex-1 overflow-auto bg-[#2d2a26] flex justify-center py-4">
+        {loading && <div className="text-[#dcae1d] text-sm self-center">Loading PDF...</div>}
+        {error && <div className="text-red-400 text-sm self-center">{error}</div>}
+        <canvas ref={canvasRef} key={pageNum} className="shadow-2xl" />
+      </div>
+      <div className="h-12 px-6 border-t border-[#2c241d] bg-[#14110e]/80 backdrop-blur-md flex items-center justify-center gap-6 shrink-0">
+        <button onClick={() => setPageNum(p => Math.max(1, p - 1))} disabled={pageNum <= 1} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors disabled:opacity-30">
+          <ChevronLeft className="w-4 h-4" /> Previous
+        </button>
+        <span className="text-[10px] font-mono text-[#9c9284]">{pageNum} / {totalPages}</span>
+        <button onClick={() => setPageNum(p => Math.min(totalPages, p + 1))} disabled={pageNum >= totalPages} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#1c1713] border border-[#2c241d] text-xs text-[#f2efe9] hover:bg-[#2c241d] transition-colors disabled:opacity-30">
+          Next <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );

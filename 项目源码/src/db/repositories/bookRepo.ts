@@ -44,6 +44,8 @@ export interface PaginatedResult<T> {
 function formatBook(row: any): BookRow {
   return {
     ...row,
+    id: String(row.id), // 统一为 string 兼容 localStorage
+    user_id: String(row.user_id),
     chapters: typeof row.chapters === 'string' ? JSON.parse(row.chapters) : row.chapters,
   };
 }
