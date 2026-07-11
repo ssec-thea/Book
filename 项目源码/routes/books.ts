@@ -8,7 +8,7 @@ const router = Router();
  * GET /api/books
  * 获取图书列表（需认证）
  */
-router.get('/', authMiddleware, async (req: Request, res: Response) => {
+router.get('/', optionalAuth, async (req: Request, res: Response) => {
   try {
     const { page, size, keyword, category } = req.query;
     const result = await bookRepo.findBooks({
