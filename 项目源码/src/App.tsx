@@ -281,6 +281,7 @@ export default function App() {
           visibility: 1,
           fileType: newBook.fileType,
           filePath: newBook.filePath,
+          fileUrl: newBook.fileUrl,
           cover: newBook.cover,
           summary: bookData.summary || '',
           content: newBook.content,
