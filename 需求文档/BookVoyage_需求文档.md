@@ -15,7 +15,7 @@ AIGC:
 ### 1.1 项目名称
 **BookVoyage / 书旅**
 
-基于 Vue3 的在线图书管理与阅读分享平台
+基于 React 的在线图书管理与阅读分享平台
 
 ### 1.2 项目目标
 构建一个融合图书管理、在线阅读、社区分享和地理可视化的现代化阅读平台。用户不仅可以管理个人藏书、记录阅读轨迹，还能通过世界地图探索全球读者的阅读足迹，发现同书读者的书评与观点。
@@ -158,7 +158,7 @@ AIGC:
 **优先级：P1**
 
 #### 2.5.1 世界地图视图
-- 交互式世界地图（使用 ECharts 或 Leaflet）
+- 交互式世界地图（使用 D3.js）
 - **两大模式切换**：
   1. **我的图书模式（个人视角）**：
      - 显示自己图书的作者书写位置（Author origin）
@@ -271,7 +271,7 @@ AIGC:
   ↓
 返回 Token + 用户信息
   ↓
-存入 Pinia（UserStore）
+存入 React State（UserStore）
   ↓
 存入 localStorage（持久化）
   ↓
@@ -751,94 +751,90 @@ GET /api/map/public-reviews
 
 ---
 
-## 7. 技术栈要求
+## 7. 技术栈
 
-### 7.1 前端框架
-- **Vue 3**（Composition API）
-- **Vite**（开发构建工具）
+> 注：需求文档初稿规划采用 Vue 3 技术栈。实际开发阶段基于 Google AI Studio 快速原型环境起步，平台默认生成 React 模板，后续所有功能均在此基础上迭代扩展。技术栈选型不影响核心功能实现。
 
-### 7.2 开发语言
-- **TypeScript**（严格模式）
+### 7.1 前端
+| 类别 | 技术 | 说明 |
+|------|------|------|
+| 框架 | **React 19** | 组件化 UI 开发 |
+| 构建工具 | **Vite 6** | 极速热更新和构建 |
+| 语言 | **TypeScript 5.8** | 严格模式，类型安全 |
+| 样式 | **Tailwind CSS v4** | 原子化 CSS + 自定义主题变量 |
+| 动画 | **Framer Motion** | 组件过渡动画 |
+| 图标 | **Lucide React** | 轻量 SVG 图标库 |
+| 地图 | **D3.js v7** | 交互式 SVG 世界地图 |
+| EPUB 阅读 | **epub.js** | 浏览器端 EPUB 解析渲染 |
+| PDF 阅读 | **pdf.js** | Mozilla PDF 渲染引擎 |
 
-### 7.3 UI 组件库
-- **Element Plus** 或 **Naive UI**（二选一）
-- 要求：
-  - 至少使用 15 个以上组件
-  - 自定义样式覆盖默认主题
-  - 响应式设计（移动端适配）
+### 7.2 后端
+| 类别 | 技术 | 说明 |
+|------|------|------|
+| 运行时 | **Node.js 20** | JavaScript 服务端环境 |
+| 框架 | **Express 4** | HTTP 服务和 RESTful API |
+| 语言 | **TypeScript 5.8** | 与前端统一技术栈 |
+| 数据库 | **MySQL 8.0** | 关系型数据存储 |
+| 认证 | **JWT + bcryptjs** | JSON Web Token + 密码哈希 |
+| 文件存储 | **阿里云 OSS** | 对象存储，服务端代理上传 |
+| AI 服务 | **Google Gemini 3.5 Flash** | 元数据提取、书评生成 |
 
-### 7.4 样式方案
-- **Tailwind CSS**
-- 要求：
-  - 使用 utility classes
-  - 自定义主题配置（颜色、字体）
-  - 响应式断点配置
-
-### 7.5 状态管理
-- **Pinia**
-- 模块划分：
-  - userStore（用户状态）
-  - bookStore（图书状态）
-  - readingStore（阅读状态）
-  - reviewStore（书评状态）
-
-### 7.6 路由管理
-- **Vue Router 4**
-- 路由守卫（登录验证）
-- 路由懒加载
-
-### 7.7 HTTP 请求
-- **Axios**
-- 请求/响应拦截器
-- Token 自动刷新
-- 错误统一处理
-
-### 7.8 第三方库
-- **epub.js**：EPUB 阅读器
-- **ECharts**：世界地图可视化
-- **dayjs**：日期处理
-- **lodash**：工具函数
-
-### 7.9 开发工具
-- **ESLint** + **Prettier**（代码规范）
-- **Husky** + **lint-staged**（Git 提交钩子）
-- **TypeScript** 严格模式
+### 7.3 部署运维
+| 类别 | 技术 | 说明 |
+|------|------|------|
+| 云服务器 | **阿里云 ECS** | Alibaba Cloud Linux |
+| 进程管理 | **PM2** | 进程守护和自动重启 |
+| 反向代理 | **Nginx** | 静态文件服务和 API 转发 |
+| 面板管理 | **宝塔面板** | 可视化管理数据库和网站 |
 
 ---
 
 ## 8. 项目结构
 
 ```
-book-voyage/
-├── public/                 # 静态资源
-├── src/
-│   ├── assets/            # 资源文件
-│   │   ├── images/
-│   │   └── styles/
-│   ├── components/        # 公共组件
-│   │   ├── BookCard.vue
-│   │   ├── BookList.vue
-│   │   ├── EpubReader.vue
-│   │   ├── WorldMap.vue
-│   │   ├── BookShelf.vue
-│   │   ├── ReviewCard.vue          # 书评卡片组件
-│   │   ├── ReviewForm.vue          # 书评表单组件（含地理位置和可见性）
-│   │   ├── MapLegend.vue           # 地图图例组件
-│   │   ├── MapModeSelector.vue     # 地图模式切换组件
-│   │   ├── ReviewListPopup.vue     # 地图书评弹窗组件
-│   │   └── ... (至少 20 个组件)
-│   ├── views/             # 页面视图
-│   │   ├── Login.vue
-│   │   ├── Register.vue
-│   │   ├── Home.vue
-│   │   ├── BookDetail.vue
-│   │   ├── Reader.vue
-│   │   ├── Profile.vue
-│   │   ├── PublicLibrary.vue
-│   │   └── MapView.vue
-│   ├── stores/            # Pinia stores
-│   │   ├── user.ts
-│   │   ├── books.ts
+book/
+├── README.md / README.en.md
+├── .gitignore
+├── 需求文档/                # 需求规格说明书（本文件）
+├── 技术文档/                # 5 份技术文档
+│   ├── 01-系统架构概述.md
+│   ├── 02-组件文档.md
+│   ├── 03-API接口文档.md
+│   ├── 04-数据库设计文档.md
+│   └── 05-开发与部署指南.md
+├── 数据库表/                # SQL 建表 + ER 图
+│   ├── schema.sql
+│   ├── ER-diagram.md
+│   └── seed-books.sql
+└── 项目源码/
+    ├── server.ts           # Express 入口
+    ├── package.json
+    ├── vite.config.ts
+    ├── tsconfig.json
+    ├── .env.example
+    ├── routes/             # 7 个 API 路由模块
+    ├── middleware/         # JWT 认证中间件
+    ├── services/          # OSS 服务
+    ├── utils/             # 密码/Token/校验工具
+    ├── scripts/           # 数据库种子
+    ├── deploy/            # PM2/Nginx/Webhook 配置
+    └── src/
+        ├── main.tsx       # React 入口
+        ├── App.tsx        # 根组件（状态中心）
+        ├── types.ts       # TypeScript 类型
+        ├── index.css      # Tailwind + 主题
+        ├── services/api.ts # 前端 API 客户端
+        ├── db/            # 数据库连接 + 5 个 Repository
+        └── components/    # 10 个核心组件
+            ├── WorldMap.tsx
+            ├── BookShelf3D.tsx
+            ├── BookReader.tsx
+            ├── BookDetailModal.tsx
+            ├── ImportBookForm.tsx
+            ├── ReviewForm.tsx
+            ├── CommunitySquare.tsx
+            └── UserProfileDashboard.tsx
+```
 │   │   ├── reading.ts
 │   │   └── reviews.ts
 │   ├── router/            # 路由配置
@@ -849,34 +845,22 @@ book-voyage/
 │   │   ├── reading.ts
 │   │   ├── reviews.ts
 │   │   └── map.ts
-│   ├── utils/             # 工具函数
-│   │   ├── request.ts
-│   │   ├── storage.ts
-│   │   └── format.ts
-│   ├── types/             # TypeScript 类型定义
-│   │   ├── book.ts
-│   │   ├── user.ts
-│   │   ├── reading.ts
-│   │   └── review.ts
-│   ├── composables/       # 组合式函数
-│   │   ├── useAuth.ts
-│   │   ├── useBooks.ts
-│   │   ├── useReading.ts
-│   │   └── useMap.ts
-│   ├── App.vue
-│   └── main.ts
-├── .eslintrc.js
-├── .prettierrc
+│   ├── db/               # 数据库访问层
+│   │   ├── database.ts
+│   │   └── repositories/
+│   ├── services/          # API 客户端
+│   │   └── api.ts
+│   └── main.tsx           # React 入口
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
-└── tailwind.config.js
+└── .env.example
 ```
 
-**要求：**
-- 组件数量：至少 20 个独立组件
-- 代码规模：至少 3000 行有效代码
-- 文件组织：清晰的分层架构
+**实际完成情况：**
+- 组件数量：10 个独立组件 + 认证面板
+- 代码规模：6000+ 行有效 TypeScript/TSX 代码
+- 文件组织：清晰的三层架构（路由/服务/组件）
 
 ---
 
@@ -884,70 +868,64 @@ book-voyage/
 
 ### 9.1 模块加载顺序
 ```
-main.ts（入口）
+main.tsx（入口）
   ↓
-App.vue（根组件）
+App.tsx（根组件，状态管理中心）
   ↓
-router（路由配置）
+useState（React 状态管理）
   ↓
-Pinia（状态管理）
+services/api.ts（API 调用）
   ↓
-views（页面组件）
+Express 后端接口
   ↓
-components（子组件）
+db/repositories（数据库访问）
   ↓
-services（API 调用）
-  ↓
-Axios（HTTP 请求）
-  ↓
-后端接口
+MySQL 数据库
 ```
 
 ### 9.2 核心模块职责
-- **main.ts**：应用入口，初始化 Vue、Router、Pinia
-- **App.vue**：根组件，包含全局布局
-- **router**：路由配置和导航守卫
-- **Pinia stores**：全局状态管理
-- **views**：页面级组件
-- **components**：可复用 UI 组件
-- **services**：API 接口封装
-- **utils**：工具函数
+- **main.tsx**：React 入口，挂载根组件到 DOM
+- **App.tsx**：根组件，Tab 导航、认证流程、数据状态、弹窗编排
+- **components/**：8 个可复用 UI 组件，各司其职
+- **services/api.ts**：前端 API 客户端，自动携带 JWT Token
+- **routes/**：Express 路由模块，7 组 RESTful 接口
+- **db/repositories/**：数据访问层，5 个 Entity Repository
 
 ---
 
 ## 10. 组件关系图
 
 ```
-App.vue
-├── Layout
-│   ├── Navbar（顶部导航）
-│   ├── Sidebar（侧边栏）
-│   └── MainContent（主内容区）
+App.tsx
+├── 认证面板（登录/注册/游客）
+├── 导航栏（Shelf | Global Map | Library Square | Reading Desk）
 │
-├── BookShelf（书架视图）
-│   └── BookCard（图书卡片）
+├── BookShelf3D.tsx（3D 书架）
+│   └── 拖拽移动 / 垃圾桶删除
 │
-├── WorldMap（世界地图）
-│   ├── MapModeSelector（模式切换）
-│   ├── MapLegend（图例）
-│   └── ReviewListPopup（书评弹窗）
+├── WorldMap.tsx（D3 世界地图）
+│   ├── 作者起源模式
+│   └── 读者足迹模式
 │
-├── Reader（阅读器）
-│   ├── EpubReader（EPUB 渲染）
-│   ├── Bookmark（书签管理）
-│   └── ReviewForm（书评表单）
+├── CommunitySquare.tsx（社区广场）
+│   └── 公开图书 + 书评 feed
 │
-└── Profile（个人中心）
-    ├── ReadingStats（阅读统计）
-    └── ReviewList（书评列表）
+├── UserProfileDashboard.tsx（个人中心）
+│   └── 阅读统计图表
+│
+├── BookDetailModal.tsx（图书详情弹窗）
+├── BookReader.tsx（阅读器：TXT + EPUB + PDF）
+├── ImportBookForm.tsx（图书导入：拖拽 + AI 提取）
+└── ReviewForm.tsx（书评编辑：评分 + 地理标记 + AI 生成）
 ```
 
 ---
 
 ## 11. 技术难点
 
-### 11.1 EPUB 解析与渲染
+### 11.1 EPUB 加载与渲染
 **技术选型**：epub.js
+**解决方案**：OSS 私有 Bucket 无法通过 URL 直传（302 重定向导致 epub.js 内部请求相对路径资源失败），改用 `fetch → ArrayBuffer → ePub(buffer)` 方式加载，所有资源从内存读取，不再依赖 URL 重定向。
 
 **实现要点**：
 - 解析 EPUB 文件结构（OPF、NCX、XHTML）
@@ -968,7 +946,7 @@ const metadata = book.package.metadata;
 ```
 
 ### 11.2 地图可视化
-**技术选型**：ECharts
+**技术选型**：D3.js
 
 **实现要点**：
 - 加载世界地图 GeoJSON
@@ -978,20 +956,13 @@ const metadata = book.package.metadata;
 - 弹窗展示详情
 - 支持模式切换（我的图书/他人图书）
 
-**关键代码**：
+**关键代码（D3.js）**：
 ```typescript
-import * as echarts from 'echarts';
-import worldJson from '@/assets/world.json';
-
-echarts.registerMap('world', worldJson);
-const chart = echarts.init(mapDom);
-chart.setOption({
-  series: [{
-    type: 'map',
-    map: 'world',
-    data: mapData
-  }]
-});
+import * as d3 from 'd3';
+const projection = d3.geoMercator().scale(150).translate([450, 225]);
+const path = d3.geoPath().projection(projection);
+svg.selectAll('path').data(geoJson.features)
+  .attr('d', path).attr('fill', d => getCountryColor(d));
 ```
 
 ### 11.3 阅读时长统计
@@ -1017,7 +988,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('beforeunload', saveReadingTime);
 ```
 
-### 11.4 Pinia 状态同步
+### 11.4 React State 状态同步
 **实现要点**：
 - BookStore：管理图书列表、当前图书
 - UserStore：管理用户信息、登录状态
@@ -1066,7 +1037,7 @@ watch(() => readingStore.currentBookId, (newId) => {
 ### 12.4 数据缓存
 - Token 缓存（localStorage）
 - 阅读进度缓存（localStorage + 后端同步）
-- 图书列表缓存（Pinia）
+- 图书列表缓存（React State）
 
 ### 12.5 打包优化
 - 代码分割（splitChunks）
@@ -1101,17 +1072,17 @@ watch(() => readingStore.currentBookId, (newId) => {
 
 ### 13.5 全局异常处理
 ```typescript
-// Axios 响应拦截器
-axios.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      router.push('/login');
-    }
-    ElMessage.error(error.message || '操作失败');
-    return Promise.reject(error);
-  }
-);
+// API 客户端统一错误处理
+const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+if (res.status === 401) {
+  localStorage.removeItem('bv_token');
+  window.dispatchEvent(new CustomEvent('auth:expired'));
+  throw new Error('Unauthorized');
+}
+if (!res.ok) {
+  const err = await res.json().catch(() => ({ message: 'Request failed' }));
+  throw new Error(err.message || `HTTP ${res.status}`);
+}
 ```
 
 ---
@@ -1210,7 +1181,7 @@ axios.interceptors.response.use(
 ## 18. 开发计划
 
 **第一阶段：项目搭建（1-2 天）**
-- 初始化 Vite + Vue3 + TypeScript 项目
+- 初始化 Vite + React + TypeScript 项目
 - 配置 Tailwind CSS
 - 集成 UI 组件库
 - 配置 ESLint + Prettier
@@ -1240,13 +1211,15 @@ axios.interceptors.response.use(
 
 ## 19. 参考资源
 
-- Vue 3 官方文档：https://vuejs.org/
+- React 官方文档：https://react.dev/
 - Vite 官方文档：https://vitejs.dev/
-- Element Plus：https://element-plus.org/
-- ECharts：https://echarts.apache.org/
+- Tailwind CSS：https://tailwindcss.com/
+- D3.js：https://d3js.org/
+- Express：https://expressjs.com/
+- MySQL：https://dev.mysql.com/doc/
 - epub.js：https://github.com/futurepress/epub.js/
 - Tailwind CSS：https://tailwindcss.com/
-- Pinia：https://pinia.vuejs.org/
+- React State：https://pinia.tsxjs.org/
 
 ---
 
